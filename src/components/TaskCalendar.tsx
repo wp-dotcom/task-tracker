@@ -8,7 +8,7 @@ import type { EventClickArg, EventDropArg, DateSelectArg, EventContentArg } from
 import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
 import { useTasks } from '../context/TasksContext';
 import { useUrgency } from '../context/UrgencyContext';
-import { formatDueDate, isTaskDueSoon, toLocalHHMM, toLocalISODate } from '../lib/dates';
+import { formatDueDate, isCalendarEventDueSoon, isTaskDueSoon, toLocalHHMM, toLocalISODate } from '../lib/dates';
 import { useNow } from '../lib/useNow';
 import { getErrorMessage } from '../lib/errors';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
@@ -211,7 +211,11 @@ export default function TaskCalendar({
         textColor: meta.color,
         editable: false,
         startEditable: false,
-        classNames: ['fc-task-event', `fc-calendar-event-${calEvent.event_type}`],
+        classNames: [
+          'fc-task-event',
+          `fc-calendar-event-${calEvent.event_type}`,
+          isCalendarEventDueSoon(calEvent, now) ? 'fc-task-due-soon' : '',
+        ].filter(Boolean),
         extendedProps: { kind: 'calendar_event' as const, event: calEvent },
       };
     });

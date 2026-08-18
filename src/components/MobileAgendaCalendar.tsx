@@ -3,7 +3,14 @@ import type { TouchEvent } from 'react';
 import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
 import { useUrgency } from '../context/UrgencyContext';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
-import { formatDueTime, parseLocalDate, toLocalISODate, todayLocalISODate } from '../lib/dates';
+import {
+  formatDueTime,
+  isCalendarEventDueSoon,
+  parseLocalDate,
+  toLocalISODate,
+  todayLocalISODate,
+} from '../lib/dates';
+import { useNow } from '../lib/useNow';
 import TaskCard from './TaskCard';
 
 interface MobileAgendaCalendarProps {
@@ -62,6 +69,10 @@ export default function MobileAgendaCalendar({
   onAddForDate,
 }: MobileAgendaCalendarProps) {
   const { urgencyMeta } = useUrgency();
+  // Ticks every minute so an appointment/delivery starts flashing exactly
+  // when it becomes due soon — tasks get this for free via TaskCard below,
+  // which ticks on its own.
+  const now = useNow();
   const today = todayLocalISODate();
   const [mode, setMode] = useState<'month' | 'week'>('month');
   const [focusedDate, setFocusedDate] = useState(() => new Date());
@@ -235,11 +246,12 @@ export default function MobileAgendaCalendar({
           <div className="apple-agenda-list">
             {sortedEvents.map((event) => {
               const meta = CALENDAR_EVENT_META[event.event_type];
+              const dueSoon = isCalendarEventDueSoon(event, now);
               return (
                 <button
                   type="button"
                   key={`event-${event.id}`}
-                  className="apple-agenda-item"
+                  className={`apple-agenda-item${dueSoon ? ' fc-task-due-soon' : ''}`}
                   onClick={() => onSelectCalendarEvent?.(event)}
                 >
                   <span className="apple-agenda-item-bar" style={{ background: meta.color }} aria-hidden="true" />
@@ -253,6 +265,7 @@ export default function MobileAgendaCalendar({
                       {event.creator?.full_name ?? 'Unknown'}
                     </span>
                   </span>
+                  {dueSoon && <span className="due-soon-pill">Due soon</span>}
                 </button>
               );
             })}

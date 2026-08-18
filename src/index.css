@@ -468,6 +468,10 @@ button {
   color: var(--color-text-muted);
 }
 
+.empty-state .btn {
+  margin-top: 6px;
+}
+
 .empty-state-happy {
   font-size: 1.1rem;
   font-weight: 500;
@@ -641,6 +645,8 @@ button {
 }
 
 .task-card {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -655,6 +661,15 @@ button {
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition: transform 0.18s ease;
+  touch-action: pan-y;
+}
+
+/* While a swipe is actively being dragged, the transform tracks the finger
+   1:1 with no transition lag; it only re-enables (via the base rule above)
+   for the snap-open/snap-back animation on release. */
+.task-card-dragging {
+  transition: none;
 }
 
 .task-card:hover {
@@ -714,10 +729,81 @@ button {
 }
 
 /* =============================================================================
+   Task card: swipe actions (mobile) + bulk-select checkbox
+   ============================================================================= */
+.task-card-swipe-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.task-card-swipe-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.task-card-swipe-action {
+  width: 84px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+.task-card-swipe-complete {
+  background: #1a7f37;
+}
+
+.task-card-swipe-delete {
+  background: var(--color-danger);
+}
+
+.task-card-checkbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.task-card-checkbox.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.task-card-selectable {
+  cursor: pointer;
+}
+
+/* =============================================================================
    Task sections (employee dashboard)
    ============================================================================= */
 .task-section {
   margin-bottom: 26px;
+  /* So jumping here via a stat-tile link doesn't tuck the heading under the
+     fixed mobile topbar (56px + safe-area-inset-top). */
+  scroll-margin-top: 76px;
+}
+
+.my-tasks-search {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 18px;
 }
 
 .task-section-title {
@@ -961,6 +1047,190 @@ button {
   color: var(--color-text-faint);
   flex-shrink: 0;
   min-width: 150px;
+}
+
+/* =============================================================================
+   Task photos (attachments)
+   ============================================================================= */
+.task-photos {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.task-photos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.task-photos-header h3 {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.task-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.task-photo-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+}
+
+.task-photo-thumb-btn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  overflow: hidden;
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.task-photo-thumb-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.task-photo-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-danger, #d64545);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-photo-preview {
+  max-width: min(92vw, 640px);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.task-photo-preview img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm, 8px);
+}
+
+/* =============================================================================
+   Task comments (two-way notes)
+   ============================================================================= */
+.task-comments {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.task-comments h3 {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+}
+
+.task-comment-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.task-comment {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  padding: 8px 10px;
+}
+
+.task-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  margin-bottom: 4px;
+}
+
+.task-comment-author {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.task-comment-time {
+  flex: 1;
+}
+
+.task-comment-delete {
+  background: none;
+  border: none;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.task-comment-delete:hover {
+  color: var(--color-danger, #d64545);
+}
+
+.task-comment-body {
+  margin: 0;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.task-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-comment-form textarea {
+  resize: vertical;
+  min-height: 44px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.task-comment-form button {
+  align-self: flex-end;
 }
 
 /* =============================================================================
@@ -1320,6 +1590,11 @@ button {
   box-shadow: var(--shadow-sm);
 }
 
+.apple-agenda-item .due-soon-pill {
+  align-self: center;
+  flex-shrink: 0;
+}
+
 .apple-agenda-item-bar {
   width: 3px;
   border-radius: 2px;
@@ -1329,8 +1604,10 @@ button {
 .apple-agenda-item-main {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .apple-agenda-item-title {
@@ -1413,6 +1690,17 @@ button {
   font-weight: 600;
 }
 
+.employee-card-name-link {
+  display: inline-block;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.employee-card-name-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 .employee-card-email {
   font-size: 0.82rem;
   color: var(--color-text-muted);
@@ -1424,6 +1712,16 @@ button {
   margin-top: 8px;
   font-size: 0.82rem;
   color: var(--color-text-muted);
+}
+
+.employee-card-stats a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.employee-card-stats a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 /* =============================================================================
@@ -1500,6 +1798,123 @@ button {
   font-weight: 600;
   margin-bottom: 18px;
   max-width: 1100px;
+}
+
+/* =============================================================================
+   Bulk task actions (Admin Tasks page, Select mode)
+   ============================================================================= */
+.bulk-action-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--color-text);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  box-shadow: var(--shadow-md);
+  max-width: min(92vw, 640px);
+}
+
+.bulk-action-count {
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.bulk-action-error {
+  color: #ffb4b4;
+  font-size: 0.8rem;
+}
+
+.bulk-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bulk-action-reassign {
+  width: auto;
+  max-width: 160px;
+}
+
+@media (max-width: 900px) {
+  .bulk-action-bar {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bulk-action-buttons {
+    justify-content: center;
+  }
+}
+
+/* =============================================================================
+   Toasts
+   ============================================================================= */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: block;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  animation: toast-in 0.18s ease-out;
+  max-width: min(90vw, 420px);
+}
+
+.toast-success {
+  background: #1a7f37;
+}
+
+.toast-error {
+  background: var(--color-danger);
+}
+
+.toast-info {
+  background: #1c1f26;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .toast-stack {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
 }
 
 .new-tasks-banner {

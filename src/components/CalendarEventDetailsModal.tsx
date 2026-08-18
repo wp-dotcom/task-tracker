@@ -2,7 +2,9 @@ import { useState } from 'react';
 import type { CalendarEventWithCreator } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useCalendarEvents } from '../context/CalendarEventsContext';
-import { formatDueDate, formatDueTime, formatTimestamp } from '../lib/dates';
+import { useToast } from '../context/ToastContext';
+import { formatDueDate, formatDueTime, formatTimestamp, isCalendarEventDueSoon } from '../lib/dates';
+import { useNow } from '../lib/useNow';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
 import { getErrorMessage } from '../lib/errors';
 import ConfirmDialog from './ConfirmDialog';
@@ -16,15 +18,18 @@ interface CalendarEventDetailsModalProps {
 export default function CalendarEventDetailsModal({ event, onClose }: CalendarEventDetailsModalProps) {
   const { profile } = useAuth();
   const { deleteCalendarEvent } = useCalendarEvents();
+  const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const now = useNow();
 
   if (!event) return null;
 
   const meta = CALENDAR_EVENT_META[event.event_type];
   const canManage = profile?.role === 'admin' || profile?.id === event.created_by;
+  const dueSoon = isCalendarEventDueSoon(event, now);
 
   async function handleDelete() {
     if (!event) return;
@@ -33,6 +38,7 @@ export default function CalendarEventDetailsModal({ event, onClose }: CalendarEv
     try {
       await deleteCalendarEvent(event.id);
       setConfirmDelete(false);
+      showToast('Entry deleted');
       onClose();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -69,6 +75,7 @@ export default function CalendarEventDetailsModal({ event, onClose }: CalendarEv
         </div>
 
         <div className="task-details-meta">
+          {dueSoon && <span className="due-soon-pill">Due soon</span>}
           <span className="task-details-assignee">Added by {event.creator?.full_name ?? 'Unknown'}</span>
         </div>
 

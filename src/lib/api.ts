@@ -8,7 +8,9 @@ import type {
   CreateTaskTemplateInput,
   Profile,
   Task,
+  TaskComment,
   TaskEvent,
+  TaskPhoto,
   TaskTemplate,
   TaskUrgency,
   TaskWithProfiles,
@@ -344,4 +346,107 @@ export async function updateCalendarEvent(
 export async function deleteCalendarEvent(eventId: string): Promise<void> {
   const { error } = await supabase.from('calendar_events').delete().eq('id', eventId);
   if (error) throw error;
+}
+
+// ---- Task comments (two-way notes) ------------------------------------------
+
+const TASK_COMMENT_SELECT_WITH_AUTHOR = `
+  *,
+  author:profiles!task_comments_author_id_fkey ( id, full_name, email )
+`;
+
+export async function fetchTaskComments(taskId: string): Promise<TaskComment[]> {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .select(TASK_COMMENT_SELECT_WITH_AUTHOR)
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as TaskComment[];
+}
+
+export async function createTaskComment(
+  taskId: string,
+  body: string,
+  authorId: string,
+): Promise<TaskComment> {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .insert({ task_id: taskId, author_id: authorId, body: body.trim() })
+    .select(TASK_COMMENT_SELECT_WITH_AUTHOR)
+    .single();
+  if (error) throw error;
+  return data as unknown as TaskComment;
+}
+
+export async function deleteTaskComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('task_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+// ---- Task photos (attachments) ----------------------------------------------
+
+const TASK_PHOTO_SELECT_WITH_UPLOADER = `
+  *,
+  uploader:profiles!task_photos_uploaded_by_fkey ( id, full_name, email )
+`;
+
+const TASK_PHOTOS_BUCKET = 'task-photos';
+
+export async function fetchTaskPhotos(taskId: string): Promise<TaskPhoto[]> {
+  const { data, error } = await supabase
+    .from('task_photos')
+    .select(TASK_PHOTO_SELECT_WITH_UPLOADER)
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as TaskPhoto[];
+}
+
+/** Public Storage URL for a photo's storage_path — safe to use directly as an <img src>. */
+export function taskPhotoUrl(storagePath: string): string {
+  return supabase.storage.from(TASK_PHOTOS_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+}
+
+/**
+ * Uploads a photo file to Storage (path "<taskId>/<random>.<ext>", enforced
+ * by the task_photos_storage_insert policy) and records it in task_photos.
+ * If the metadata insert fails after a successful upload (rare — e.g. a
+ * network blip), the now-orphaned Storage object is best-effort cleaned up
+ * so it doesn't linger with no matching row.
+ */
+export async function uploadTaskPhoto(
+  taskId: string,
+  file: File,
+  uploadedBy: string,
+): Promise<TaskPhoto> {
+  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+  const random = crypto.randomUUID();
+  const storagePath = `${taskId}/${random}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(TASK_PHOTOS_BUCKET)
+    .upload(storagePath, file, { contentType: file.type || undefined });
+  if (uploadError) throw uploadError;
+
+  const { data, error } = await supabase
+    .from('task_photos')
+    .insert({ task_id: taskId, uploaded_by: uploadedBy, storage_path: storagePath })
+    .select(TASK_PHOTO_SELECT_WITH_UPLOADER)
+    .single();
+
+  if (error) {
+    await supabase.storage.from(TASK_PHOTOS_BUCKET).remove([storagePath]).catch(() => {});
+    throw error;
+  }
+
+  return data as unknown as TaskPhoto;
+}
+
+export async function deleteTaskPhoto(photoId: string, storagePath: string): Promise<void> {
+  const { error } = await supabase.from('task_photos').delete().eq('id', photoId);
+  if (error) throw error;
+  // Best-effort — the metadata row (the thing RLS/the UI actually cares
+  // about) is already gone even if this second cleanup step fails.
+  await supabase.storage.from(TASK_PHOTOS_BUCKET).remove([storagePath]).catch(() => {});
 }

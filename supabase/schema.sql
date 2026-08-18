@@ -24,6 +24,8 @@
 --  15. urgency_settings table (customizable urgency colors) + RLS + seed data
 --  16. calendar_events table (employee-added appointments/deliveries) + RLS
 --  17. task_recurrences table (repeating tasks) + generation/stop RPCs + RLS
+--  18. task_comments table (two-way notes on a task) + RLS
+--  19. task_photos table + Storage bucket/policies (photo attachments) + RLS
 -- =============================================================================
 
 
@@ -1026,6 +1028,181 @@ $$;
 
 revoke all on function public.stop_task_recurrence(uuid) from public;
 grant execute on function public.stop_task_recurrence(uuid) to authenticated;
+
+-- -----------------------------------------------------------------------------
+-- can_access_task() — shared visibility check for task_comments/task_photos
+-- -----------------------------------------------------------------------------
+-- Same rule as tasks_select above (admin, or the assigned employee), pulled
+-- out into a helper since both task_comments and task_photos (table +
+-- Storage policies) need the exact same check.
+create or replace function public.can_access_task(p_task_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.tasks t
+    where t.id = p_task_id
+      and (t.assigned_to = auth.uid() or public.is_admin())
+  );
+$$;
+
+revoke all on function public.can_access_task(uuid) from public;
+grant execute on function public.can_access_task(uuid) to authenticated;
+
+
+-- -----------------------------------------------------------------------------
+-- 18. task_comments — two-way notes on a task
+-- -----------------------------------------------------------------------------
+-- Free-form notes either side can leave on a task (e.g. "waiting on stain to
+-- dry, finishing tomorrow") — separate from task_events, which is a
+-- system-generated audit trail the client never writes to directly. Simple
+-- append/delete only: no editing a comment after posting.
+create table if not exists public.task_comments (
+  id         uuid primary key default gen_random_uuid(),
+  task_id    uuid not null references public.tasks (id) on delete cascade,
+  author_id  uuid not null references public.profiles (id) on delete cascade,
+  body       text not null check (char_length(btrim(body)) > 0),
+  created_at timestamptz not null default now()
+);
+
+comment on table public.task_comments is 'Free-form notes employees/admins leave on a task, visible to both sides. Append/delete only — no editing.';
+
+create index if not exists task_comments_task_id_idx on public.task_comments (task_id);
+
+alter table public.task_comments enable row level security;
+
+-- Same visibility as the task itself: admin sees every comment; an employee
+-- sees comments only on tasks assigned to them.
+drop policy if exists task_comments_select on public.task_comments;
+create policy task_comments_select on public.task_comments
+  for select
+  to authenticated
+  using (public.can_access_task(task_id));
+
+-- Posting a comment requires being able to see the task, and attributing it
+-- to yourself (author_id must match auth.uid()).
+drop policy if exists task_comments_insert on public.task_comments;
+create policy task_comments_insert on public.task_comments
+  for insert
+  to authenticated
+  with check (author_id = auth.uid() and public.can_access_task(task_id));
+
+-- Either the comment's own author or an admin may delete it (light-touch
+-- moderation, e.g. a note posted to the wrong task).
+drop policy if exists task_comments_delete on public.task_comments;
+create policy task_comments_delete on public.task_comments
+  for delete
+  to authenticated
+  using (author_id = auth.uid() or public.is_admin());
+
+grant select, insert, delete on public.task_comments to authenticated;
+
+-- Live updates: a note posted by one party shows up for the other without a
+-- refresh, while they both have the same task's details open.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'task_comments'
+  ) then
+    alter publication supabase_realtime add table public.task_comments;
+  end if;
+end
+$$;
+
+
+-- -----------------------------------------------------------------------------
+-- 19. task_photos — photo attachments (Storage bucket + policies)
+-- -----------------------------------------------------------------------------
+-- Image bytes live in a Storage bucket ("task-photos"); this table just
+-- tracks which task each uploaded photo belongs to and who uploaded it, so
+-- the UI can list/attribute/delete them the same way it does everything
+-- else. The bucket is public (readable by anyone with the exact, effectively
+-- unguessable URL — a random UUID path — the same trust model as a shared
+-- Google Drive link), which keeps viewing a photo a plain <img src> with no
+-- token/signed-URL management; uploading and deleting are still gated by the
+-- policies below so only someone who can see the task can attach to it.
+create table if not exists public.task_photos (
+  id           uuid primary key default gen_random_uuid(),
+  task_id      uuid not null references public.tasks (id) on delete cascade,
+  uploaded_by  uuid not null references public.profiles (id) on delete cascade,
+  storage_path text not null,
+  created_at   timestamptz not null default now()
+);
+
+comment on table public.task_photos is 'Metadata for photos attached to a task. Actual image bytes live in the task-photos Storage bucket at storage_path.';
+
+create index if not exists task_photos_task_id_idx on public.task_photos (task_id);
+
+alter table public.task_photos enable row level security;
+
+drop policy if exists task_photos_select on public.task_photos;
+create policy task_photos_select on public.task_photos
+  for select
+  to authenticated
+  using (public.can_access_task(task_id));
+
+drop policy if exists task_photos_insert on public.task_photos;
+create policy task_photos_insert on public.task_photos
+  for insert
+  to authenticated
+  with check (uploaded_by = auth.uid() and public.can_access_task(task_id));
+
+-- Either the uploader or an admin may delete a photo.
+drop policy if exists task_photos_delete on public.task_photos;
+create policy task_photos_delete on public.task_photos
+  for delete
+  to authenticated
+  using (uploaded_by = auth.uid() or public.is_admin());
+
+grant select, insert, delete on public.task_photos to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'task_photos'
+  ) then
+    alter publication supabase_realtime add table public.task_photos;
+  end if;
+end
+$$;
+
+-- The bucket itself, created idempotently. Storage objects are uploaded with
+-- a path of "<task_id>/<random-filename>" — the policies below parse the
+-- task_id back out of that path (storage.foldername(name) splits it into
+-- path segments) to apply the exact same can_access_task() check as the
+-- task_photos table above.
+insert into storage.buckets (id, name, public)
+values ('task-photos', 'task-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists task_photos_storage_select on storage.objects;
+create policy task_photos_storage_select on storage.objects
+  for select
+  to authenticated
+  using (bucket_id = 'task-photos');
+
+drop policy if exists task_photos_storage_insert on storage.objects;
+create policy task_photos_storage_insert on storage.objects
+  for insert
+  to authenticated
+  with check (
+    bucket_id = 'task-photos'
+    and public.can_access_task(((storage.foldername(name))[1])::uuid)
+  );
+
+-- The Storage API sets `owner` to the uploader's auth.uid() automatically —
+-- not something the client can spoof by writing to the objects table
+-- directly, since it never gets a general INSERT/UPDATE grant on it.
+drop policy if exists task_photos_storage_delete on storage.objects;
+create policy task_photos_storage_delete on storage.objects
+  for delete
+  to authenticated
+  using (bucket_id = 'task-photos' and (owner = auth.uid() or public.is_admin()));
 
 -- =============================================================================
 -- Done. Next steps (see README.md):

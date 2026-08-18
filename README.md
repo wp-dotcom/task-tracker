@@ -9,9 +9,12 @@ Core workflow: **Assign → View → Complete → Verify.**
 
 Also included: reusable **task presets** (save a common task once, pick it
 from a list instead of retyping it), admin-**customizable urgency colors**
-(both under the admin's **Templates** and **Settings** nav items), and a
+(both under the admin's **Templates** and **Settings** nav items), a
 shared **appointments/deliveries calendar** any employee or admin can add
-to directly.
+to directly, **due-soon flashing** so nothing slips through at the last
+minute, per-task **photos and notes**, and a set of quality-of-life
+touches — toast confirmations, bulk task actions, swipe-to-complete/delete
+on mobile, task duplication, and search/filters throughout.
 
 ---
 
@@ -60,6 +63,16 @@ only add what's missing (like the `task_templates`, `urgency_settings`, and
 `calendar_events` tables used by the Templates, Settings, and
 appointments/deliveries features) without touching your existing tasks,
 profiles, or history.
+
+**Updating from a version before task notes/photos?** The current
+`schema.sql` also adds two new tables (`task_comments` and `task_photos`)
+and a new public Storage bucket (`task-photos`) used by the **Notes** and
+**Photos** sections on a task's details. As always, re-running the
+**entire** file (not a partial snippet) is what picks these up — copy the
+whole `supabase/schema.sql` into a new SQL Editor query and click **Run**
+again, exactly like step 3 above. This is safe and won't touch any
+existing data. If the app still can't find `task_comments`/`task_photos`
+right after running it, see the schema-cache troubleshooting entry below.
 
 ---
 
@@ -284,6 +297,13 @@ there's a network/connection issue with Supabase.
 Confirm `netlify.toml` and `public/_redirects` were both deployed (check
 the deploy's file listing) and that the publish directory is `dist`.
 
+**Uploading a task photo fails, or an uploaded photo shows a broken image.**
+This usually means the `task-photos` Storage bucket or its policies weren't
+created — confirm you ran the **entire, current** `supabase/schema.sql`
+(see the update note in step 3), then check **Storage** in the Supabase
+dashboard sidebar for a bucket named `task-photos`. If it's missing, re-run
+the full SQL file again; it's safe to re-run.
+
 **Realtime updates aren't showing up on the admin's screen.**
 Confirm in **Database → Replication** in the Supabase dashboard that the
 `tasks` table is part of the `supabase_realtime` publication (the setup SQL
@@ -306,10 +326,12 @@ changes).
 
 ```
 src/
-  components/   Reusable UI: calendar, modals, cards, badges, layout, skeletons, offline banner
+  components/   Reusable UI: calendar, modals, cards, badges, layout, skeletons, offline banner, toasts,
+                task notes, task photos
   pages/        One component per route (calendar, tasks, employees, templates, settings, my-tasks, login)
-  context/      React context: auth session/profile, shared tasks state + realtime, urgency colors
-  hooks/        Small data-fetching hooks (employees, task presets, task activity log, online status)
+  context/      React context: auth session/profile, shared tasks state + realtime, urgency colors, toasts
+  hooks/        Small data-fetching hooks (employees, task presets, task activity log, online status,
+                task comments, task photos)
   lib/          Supabase client, all Supabase queries/RPC calls, date/urgency helpers, error messages
   types/        Shared TypeScript types (Profile, Task, TaskEvent, TaskTemplate, enums)
 supabase/
@@ -405,13 +427,17 @@ status in the task details view. This is a separate signal from "Overdue"
 at a time (once it's actually overdue, the flashing stops and the red
 "Overdue" styling takes over instead).
 
+The same amber flashing and "Due soon" pill also apply to **appointments
+and deliveries** on the calendar (desktop, phone agenda, and the entry's
+own details view) as their date/time approaches, since a missed delivery
+slot matters just as much as a missed task.
+
 "Due soon" means:
 
-- A task **with a specific due time** starts flashing 2 hours before that
-  time.
-- A task **with no specific time** (just a due date) starts flashing for
-  its entire due date, since there's no narrower time window to measure
-  against.
+- A task or appointment/delivery **with a specific time** starts flashing 2
+  hours before that time.
+- One **with no specific time** (just a date) starts flashing for its
+  entire date, since there's no narrower time window to measure against.
 
 This updates live — a task starts (and stops) flashing on its own as time
 passes, even if you don't touch anything else in the app, so leaving the
@@ -564,6 +590,83 @@ you don't have to recreate the same task every day/week/month:
   completed stays in your history. Only the person who set up the
   recurrence (or the admin) can stop it.
 
+## Notifications, filters & shortcuts
+
+A handful of quality-of-life additions on top of the core workflow:
+
+- **Toast confirmations.** Saving a task, template, calendar entry, or
+  settings change; completing, reopening, or deleting a task; stopping a
+  recurrence — each shows a brief toast notification in the corner
+  confirming what just happened, so it's obvious an action actually took
+  effect even before the underlying list updates.
+- **Confirm before losing unsaved changes.** Closing the Add/Edit Task form
+  (via Close, the overlay, or Esc) after you've typed something prompts
+  "Discard changes?" instead of silently throwing your edits away. Closing
+  without having changed anything just closes normally.
+- **Confirm before resetting urgency colors.** The **Reset to defaults**
+  button on the Settings page now asks for confirmation first instead of
+  resetting immediately.
+- **Duplicate task.** Opening a task's details shows a **Duplicate**
+  button (wherever Edit/Delete are shown) that opens the Add Task form
+  pre-filled with the same title, instructions, assignee, and urgency, but
+  today's date as the due date — handy for "do this again" without
+  retyping everything.
+- **Clickable employee stats.** On the **Employees** page, an employee's
+  name and each of their Open/Overdue/Completed counts are links straight
+  into the Tasks list, pre-filtered to that employee (and, for the counts,
+  that status too).
+- **Bulk actions on the Tasks list.** Click **Select** at the top of the
+  admin Tasks list to check multiple tasks at once, then **Complete**,
+  **Reassign**, or **Delete** them together from a floating action bar at
+  the bottom (Delete and Reassign ask for confirmation/a target employee
+  first). Click **Cancel** to leave selection mode.
+- **Swipe actions on task cards (phone).** On a touch screen, swiping a
+  task card right reveals a green **Complete** action; swiping left
+  reveals a red **Delete** action (with a confirmation prompt). Only shows
+  up for actions you actually have permission to take on that task — the
+  same rules as the buttons inside the task's details view. Tapping the
+  card (rather than swiping) still opens it as usual; this has no effect
+  on a desktop mouse.
+- **Search on My Tasks.** A search box above the task sections filters by
+  title/description as you type; the summary stat tiles above it always
+  reflect your *whole* task list, not just the filtered results, so you
+  can still see your true Overdue/Today/This Week/Completed counts while
+  narrowing the list below.
+- **My Tasks summary tiles.** Four tiles (Overdue, Due today, This week,
+  Completed) sit above the task list, mirroring the calendar's summary
+  tiles; tapping one jumps straight to that section instead of just
+  displaying a number.
+
+## Task notes & photos
+
+Opening any task's details now also shows two extra sections, visible to
+both the admin and the employee it's assigned to (not admin-only, unlike
+the Activity log):
+
+- **Photos** — attach one or more photos to a task (e.g. a finished-piece
+  photo, a delivery confirmation, a reference image) via **+ Add photo**,
+  which opens the phone's camera/photo picker on mobile or a normal file
+  picker on desktop. Photos show as a small thumbnail grid; tap one to view
+  it full-size, and delete your own uploads anytime (the admin can delete
+  any photo). Live for everyone viewing that task at the same time — no
+  refresh needed.
+- **Notes** — a lightweight back-and-forth note thread on the task, for
+  quick context that doesn't belong in the task's main instructions
+  ("left the extra hardware in the top drawer," "customer wants it a shade
+  darker," etc.). Anyone who can see the task can post a note; you can
+  delete your own notes, and the admin can delete any note. Also live via
+  Realtime.
+
+Photos are stored in a Supabase Storage bucket (`task-photos`) that's
+**public** by URL — meaning anyone with the exact photo link (a long,
+unguessable random address, similar to a "anyone with the link" Google
+Drive share) can view that one photo without logging in, even though the
+app itself never exposes that link anywhere outside the task it belongs
+to. This tradeoff was chosen deliberately to keep photo viewing simple and
+fast (a plain `<img>` tag, no extra sign-in-protected link-generation
+step) — if that's ever a concern for a particularly sensitive photo, don't
+attach it here.
+
 ## How the security model works (short version)
 
 - Every table has Row Level Security **enabled**, and access is granted only
@@ -616,6 +719,17 @@ you don't have to recreate the same task every day/week/month:
   database's own clock to decide what's due. `stop_task_recurrence()`
   double-checks the caller is the recurrence's creator or an admin before
   touching anything, the same pattern as `complete_task`/`reopen_task`.
+- `task_comments` and `task_photos` share a `can_access_task()` helper
+  (same pattern as `is_admin()`) that returns true for an admin or for the
+  task's own assignee — both tables' `SELECT`/`INSERT` policies are built
+  on it, so a note or photo is only ever visible to the two people who can
+  already see the task itself, never a coworker. Deleting a note is
+  restricted to its author or an admin; deleting a photo (and its
+  underlying Storage object) is restricted to its uploader or an admin.
+  The `task-photos` Storage bucket's own policies re-derive the task id
+  from the upload path (`<task_id>/<random>.<ext>`) and apply the exact
+  same `can_access_task()` check, so Storage-level access matches the
+  database-level access rather than being a separate, looser gate.
 
 This has been tested directly against Postgres with RLS enabled (not just
 through the app) — including confirming that an employee's direct
@@ -633,7 +747,9 @@ assigned to a coworker, that generated occurrences land on the right dates
 for daily/weekly/monthly/weekday recurrences (including month-end dates like
 starting on the 31st, and a weekday-only series that starts on a weekend),
 and that stopping a recurrence removes its upcoming open occurrences while
-preserving completed ones as history.
+preserving completed ones as history, and that a note or photo posted on a
+task is only ever visible/deletable to that task's assignee and the admin —
+never a second employee, even via a direct API call.
 
 ## Test checklist
 
@@ -800,3 +916,44 @@ preserving completed ones as history.
       "Open" for a due-soon task, and "Overdue" once it's past due.
 - [ ] With the OS "reduce motion" accessibility setting on, due-soon tasks
       show their amber styling but don't animate/flash.
+- [ ] An appointment/delivery due soon flashes the same amber ring/pill on
+      the calendar and in its details view, and stops flashing once its
+      date/time has passed.
+- [ ] Saving a task, template, calendar entry, or settings change shows a
+      toast confirmation in the corner; so does completing, reopening, or
+      deleting a task, and stopping a recurrence.
+- [ ] Typing into the Add/Edit Task form, then clicking Close (or the
+      overlay, or pressing Esc) prompts "Discard changes?"; closing an
+      untouched form does not prompt.
+- [ ] Clicking **Reset to defaults** on Settings prompts for confirmation
+      before actually resetting the urgency colors.
+- [ ] Opening a task and clicking **Duplicate** opens the Add Task form
+      pre-filled with the same title/instructions/assignee/urgency but
+      today's date; saving it creates a separate new task (the original is
+      untouched).
+- [ ] On the **Employees** page, clicking an employee's name opens the
+      Tasks list filtered to them; clicking their Overdue/Open/Completed
+      count opens it filtered to both that employee and that status.
+- [ ] On the admin Tasks list, clicking **Select** shows checkboxes on each
+      task card and a floating action bar; selecting a few tasks and
+      clicking **Complete** marks them all complete, **Reassign** (after
+      picking an employee) reassigns them all, and **Delete** (after
+      confirming) removes them all. **Cancel** exits selection mode without
+      changing anything.
+- [ ] On a touch device, swiping a task card right reveals a green Complete
+      action and swiping left reveals a red Delete action (with a confirm
+      prompt); a task you don't have permission to complete/delete doesn't
+      reveal that particular action. A plain tap still opens the task.
+- [ ] Typing in the search box on **My Tasks** filters the task sections
+      below to matching titles/descriptions, while the four summary tiles
+      above it keep showing your full, unfiltered counts.
+- [ ] Clicking a My Tasks summary tile (Overdue/Due today/This week/
+      Completed) scrolls to that section.
+- [ ] Opening any task's details shows **Photos** and **Notes** sections,
+      visible to both the admin and the assigned employee (not just the
+      admin). Adding a photo or posting a note from one side appears for
+      the other side without a refresh (Realtime); each side can delete
+      their own photos/notes, and the admin can delete anyone's.
+- [ ] A second employee cannot see another employee's task notes/photos —
+      confirm by checking that task's details as that second employee (or
+      via a direct query) shows nothing.

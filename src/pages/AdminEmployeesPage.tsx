@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useEmployees } from '../hooks/useEmployees';
 import { useTasks } from '../context/TasksContext';
 import { isTaskOverdue } from '../lib/dates';
@@ -44,12 +45,19 @@ export default function AdminEmployeesPage() {
             const s = stats.get(emp.id) ?? { open: 0, overdue: 0, completed: 0 };
             return (
               <div key={emp.id} className="employee-card">
-                <div className="employee-card-name">{emp.full_name}</div>
+                <Link to={`/tasks?employee=${emp.id}`} className="employee-card-name employee-card-name-link">
+                  {emp.full_name}
+                </Link>
                 {emp.email && <div className="employee-card-email">{emp.email}</div>}
                 <div className="employee-card-stats">
-                  <span>{s.open} open</span>
-                  <span className={s.overdue > 0 ? 'text-danger' : ''}>{s.overdue} overdue</span>
-                  <span>{s.completed} completed</span>
+                  <Link to={`/tasks?employee=${emp.id}&filter=open`}>{s.open} open</Link>
+                  <Link
+                    to={`/tasks?employee=${emp.id}&filter=overdue`}
+                    className={s.overdue > 0 ? 'text-danger' : ''}
+                  >
+                    {s.overdue} overdue
+                  </Link>
+                  <Link to={`/tasks?employee=${emp.id}&filter=completed`}>{s.completed} completed</Link>
                 </div>
               </div>
             );

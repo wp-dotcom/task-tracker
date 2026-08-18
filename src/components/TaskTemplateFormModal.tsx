@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { TaskTemplate, TaskUrgency } from '../types';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
+import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../lib/errors';
 import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
 
@@ -19,6 +20,7 @@ export default function TaskTemplateFormModal({
   onSaved,
 }: TaskTemplateFormModalProps) {
   const { createTemplate, updateTemplate } = useTaskTemplates();
+  const { showToast } = useToast();
   const isEdit = Boolean(template);
 
   const [title, setTitle] = useState('');
@@ -51,9 +53,11 @@ export default function TaskTemplateFormModal({
       if (isEdit && template) {
         await updateTemplate(template.id, { title, description, urgency });
         onSaved?.({ ...template, title: title.trim(), description: description.trim(), urgency });
+        showToast('Preset updated');
       } else {
         const created = await createTemplate({ title, description, urgency });
         onSaved?.(created);
+        showToast('Preset saved');
       }
       onClose();
     } catch (err) {

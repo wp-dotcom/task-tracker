@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
+import { useToast } from '../context/ToastContext';
 import { useEmployees } from '../hooks/useEmployees';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
 import { getErrorMessage } from '../lib/errors';
@@ -16,12 +17,19 @@ import { todayLocalISODate } from '../lib/dates';
 import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
 import TaskTemplateFormModal from './TaskTemplateFormModal';
 import TimeSelect from './TimeSelect';
+import ConfirmDialog from './ConfirmDialog';
 
 interface TaskFormModalProps {
   open: boolean;
   onClose: () => void;
   /** When set, the modal edits this task instead of creating a new one. */
   task?: TaskWithProfiles | null;
+  /**
+   * When set (and `task` isn't), pre-fills the form from this task's
+   * fields but stays in create mode — used by "Duplicate task". Due date
+   * defaults to today rather than copying the original's (likely past) date.
+   */
+  duplicateFrom?: TaskWithProfiles | null;
   /** Pre-fill the due date, e.g. when created from a calendar date click. */
   defaultDate?: string;
   /** Pre-fill the due time ("HH:MM"), e.g. when created from a week/day calendar time-slot click. */
@@ -33,12 +41,14 @@ export default function TaskFormModal({
   open,
   onClose,
   task = null,
+  duplicateFrom = null,
   defaultDate,
   defaultTime,
   onSaved,
 }: TaskFormModalProps) {
   const { profile } = useAuth();
   const { createTask, createTaskRecurrence, updateTask, markViewed } = useTasks();
+  const { showToast } = useToast();
   const { employees, loading: employeesLoading } = useEmployees();
   const { templates, refresh: refreshTemplates } = useTaskTemplates();
 
@@ -55,8 +65,37 @@ export default function TaskFormModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [templateFormOpen, setTemplateFormOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const isEdit = Boolean(task);
+  // In edit mode, "dirty" means changed from the task being edited. In
+  // create mode (including duplicating), there's no baseline to diff
+  // against, so it just means "you've actually started writing something" —
+  // proportionate to what's actually costly to lose (a typed-out title or
+  // set of instructions), without false-positiving on defaults that
+  // auto-fill (e.g. the assignee once the employee list loads).
+  const dirty =
+    isEdit && task
+      ? title !== task.title ||
+        description !== task.description ||
+        assignedTo !== task.assigned_to ||
+        dueDate !== task.due_date ||
+        dueTime !== (task.due_time ? task.due_time.slice(0, 5) : '') ||
+        urgency !== task.urgency
+      : title.trim() !== '' || description.trim() !== '';
+
+  function requestClose() {
+    if (dirty) {
+      setConfirmDiscard(true);
+    } else {
+      onClose();
+    }
+  }
+
+  function discardAndClose() {
+    setConfirmDiscard(false);
+    onClose();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +106,14 @@ export default function TaskFormModal({
       setDueDate(task.due_date);
       setDueTime(task.due_time ? task.due_time.slice(0, 5) : '');
       setUrgency(task.urgency);
+    } else if (duplicateFrom) {
+      setTitle(duplicateFrom.title);
+      setDescription(duplicateFrom.description);
+      setAssignedTo(duplicateFrom.assigned_to);
+      setDueDate(defaultDate ?? todayLocalISODate());
+      setDueTime(duplicateFrom.due_time ? duplicateFrom.due_time.slice(0, 5) : '');
+      setUrgency(duplicateFrom.urgency);
+      setRepeat('none');
     } else {
       setTitle('');
       setDescription('');
@@ -80,7 +127,8 @@ export default function TaskFormModal({
     }
     setSelectedTemplateId('');
     setError(null);
-  }, [open, task, defaultDate, defaultTime, isAdmin, profile]);
+    setConfirmDiscard(false);
+  }, [open, task, duplicateFrom, defaultDate, defaultTime, isAdmin, profile]);
 
   function applyTemplate(template: TaskTemplate) {
     setTitle(template.title);
@@ -166,6 +214,7 @@ export default function TaskFormModal({
         }
         onSaved?.(created.id);
       }
+      showToast(isEdit ? 'Task updated' : repeat === 'none' ? 'Task created' : 'Recurring task created');
       onClose();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -176,7 +225,7 @@ export default function TaskFormModal({
 
   return (
     <>
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
+    <div className="modal-overlay" role="presentation" onClick={requestClose}>
       <div
         className="modal-panel"
         role="dialog"
@@ -185,7 +234,7 @@ export default function TaskFormModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="task-form-title">
-          {isEdit ? 'Edit task' : isAdmin ? 'Add task' : 'Add my task'}
+          {isEdit ? 'Edit task' : duplicateFrom ? 'Duplicate task' : isAdmin ? 'Add task' : 'Add my task'}
         </h2>
 
         {!isEdit && isAdmin && (
@@ -342,7 +391,7 @@ export default function TaskFormModal({
           )}
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={requestClose}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -356,6 +405,15 @@ export default function TaskFormModal({
       open={templateFormOpen}
       onClose={() => setTemplateFormOpen(false)}
       onSaved={handleTemplateSaved}
+    />
+    <ConfirmDialog
+      open={confirmDiscard}
+      title="Discard changes?"
+      message="You'll lose what you've entered here. This can't be undone."
+      confirmLabel="Discard"
+      danger
+      onConfirm={discardAndClose}
+      onCancel={() => setConfirmDiscard(false)}
     />
     </>
   );

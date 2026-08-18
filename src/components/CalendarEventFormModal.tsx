@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { CalendarEventType, CalendarEventWithCreator } from '../types';
 import { useCalendarEvents } from '../context/CalendarEventsContext';
+import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../lib/errors';
 import { todayLocalISODate } from '../lib/dates';
 import { CALENDAR_EVENT_META, CALENDAR_EVENT_TYPES } from '../lib/calendarEventMeta';
@@ -26,6 +27,7 @@ export default function CalendarEventFormModal({
   defaultTime,
 }: CalendarEventFormModalProps) {
   const { createCalendarEvent, updateCalendarEvent } = useCalendarEvents();
+  const { showToast } = useToast();
 
   const [eventType, setEventType] = useState<CalendarEventType>('appointment');
   const [title, setTitle] = useState('');
@@ -81,8 +83,10 @@ export default function CalendarEventFormModal({
       };
       if (isEdit && event) {
         await updateCalendarEvent(event.id, payload);
+        showToast('Entry updated');
       } else {
         await createCalendarEvent(payload);
+        showToast(`${CALENDAR_EVENT_META[eventType].label} added`);
       }
       onClose();
     } catch (err) {

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { TasksProvider } from './context/TasksContext';
 import { CalendarEventsProvider } from './context/CalendarEventsContext';
 import { UrgencyProvider } from './context/UrgencyContext';
@@ -101,11 +102,13 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/*" element={<AuthenticatedApp />} />
-      </Routes>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<AuthenticatedApp />} />
+        </Routes>
+      </AuthProvider>
+    </ToastProvider>
   );
 }

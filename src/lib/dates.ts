@@ -97,6 +97,29 @@ export function isTaskDueSoon(
 }
 
 /**
+ * Same "due soon" idea as isTaskDueSoon, but for a calendar_events row
+ * (an appointment/delivery) — event_date/event_time instead of
+ * due_date/due_time, and no completed/overdue status to check first, since
+ * calendar events don't track completion.
+ */
+export function isCalendarEventDueSoon(
+  event: { event_date: string; event_time: string | null },
+  now: number = Date.now(),
+): boolean {
+  const deadline = parseLocalDate(event.event_date);
+  if (event.event_time) {
+    const [h, m, s] = event.event_time.split(':').map(Number);
+    deadline.setHours(h ?? 0, m ?? 0, s ?? 0, 0);
+  } else {
+    deadline.setHours(23, 59, 59, 999);
+  }
+  const deadlineMs = deadline.getTime();
+  if (deadlineMs <= now) return false;
+  if (!event.event_time) return event.event_date === todayLocalISODate();
+  return deadlineMs - now <= DUE_SOON_WINDOW_MS;
+}
+
+/**
  * True if `dateStr` falls within the current local calendar week
  * (Sunday-Saturday, matching the calendar's firstDay=0), including today.
  * Used to split "upcoming" tasks into "this week" vs. "future" groups.

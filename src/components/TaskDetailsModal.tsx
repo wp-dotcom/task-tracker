@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TaskWithProfiles } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
+import { useToast } from '../context/ToastContext';
 import { useTaskEvents } from '../hooks/useTaskEvents';
 import { formatDueDate, formatDueTime, formatTimestamp, isTaskDueSoon, isTaskOverdue } from '../lib/dates';
 import { getErrorMessage } from '../lib/errors';
@@ -9,6 +10,8 @@ import UrgencyBadge from './UrgencyBadge';
 import ActivityLog from './ActivityLog';
 import ConfirmDialog from './ConfirmDialog';
 import TaskFormModal from './TaskFormModal';
+import TaskComments from './TaskComments';
+import TaskPhotos from './TaskPhotos';
 
 interface TaskDetailsModalProps {
   task: TaskWithProfiles | null;
@@ -18,6 +21,7 @@ interface TaskDetailsModalProps {
 export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProps) {
   const { profile } = useAuth();
   const { markViewed, completeTask, reopenTask, deleteTask, stopRecurrence } = useTasks();
+  const { showToast } = useToast();
   const { events, loading: eventsLoading, refresh: refreshEvents } = useTaskEvents(task?.id ?? null);
 
   const [busy, setBusy] = useState(false);
@@ -26,6 +30,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
   const [confirmReopen, setConfirmReopen] = useState(false);
   const [confirmStopRecurrence, setConfirmStopRecurrence] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
   const isOwner = task && profile ? task.assigned_to === profile.id : false;
@@ -63,6 +68,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
     setError(null);
     try {
       await completeTask(task.id);
+      showToast('Marked complete');
       onClose();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -77,6 +83,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
     try {
       await reopenTask(task.id);
       await refreshEvents();
+      showToast('Task reopened');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -92,6 +99,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
     try {
       await deleteTask(task.id);
       setConfirmDelete(false);
+      showToast('Task deleted');
       onClose();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -106,6 +114,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
     try {
       await stopRecurrence(task.recurrence_id);
       setConfirmStopRecurrence(false);
+      showToast('Series stopped');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -120,6 +129,17 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         task={task}
         onClose={() => setEditing(false)}
         onSaved={() => setEditing(false)}
+      />
+    );
+  }
+
+  if (duplicating) {
+    return (
+      <TaskFormModal
+        open={duplicating}
+        duplicateFrom={task}
+        onClose={() => setDuplicating(false)}
+        onSaved={() => setDuplicating(false)}
       />
     );
   }
@@ -221,6 +241,9 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
               <button type="button" className="btn btn-ghost" onClick={() => setEditing(true)}>
                 Edit
               </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setDuplicating(true)}>
+                Duplicate
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-danger-text"
@@ -243,6 +266,10 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
             Close
           </button>
         </div>
+
+        <TaskPhotos taskId={task.id} />
+
+        <TaskComments taskId={task.id} />
 
         {isAdmin && (
           <div className="task-details-activity">

@@ -190,3 +190,23 @@ export interface UpdateCalendarEventInput {
   event_date?: string;
   event_time?: string | null;
 }
+
+/** A free-form note either side leaves on a task — see task_comments in schema.sql. */
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  author?: Pick<Profile, 'id' | 'full_name' | 'email'> | null;
+}
+
+/** A photo attached to a task. `url` is the public Storage URL, derived client-side from storage_path. */
+export interface TaskPhoto {
+  id: string;
+  task_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  created_at: string;
+  uploader?: Pick<Profile, 'id' | 'full_name' | 'email'> | null;
+}

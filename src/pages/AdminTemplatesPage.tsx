@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
+import { useToast } from '../context/ToastContext';
 import type { TaskTemplate } from '../types';
 import TaskTemplateFormModal from '../components/TaskTemplateFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -9,6 +10,7 @@ import { getErrorMessage } from '../lib/errors';
 
 export default function AdminTemplatesPage() {
   const { templates, loading, error, deleteTemplate } = useTaskTemplates();
+  const { showToast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TaskTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<TaskTemplate | null>(null);
@@ -32,6 +34,7 @@ export default function AdminTemplatesPage() {
     try {
       await deleteTemplate(confirmDelete.id);
       setConfirmDelete(null);
+      showToast('Preset deleted');
     } catch (err) {
       setDeleteError(getErrorMessage(err));
     } finally {
