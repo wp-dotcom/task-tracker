@@ -916,6 +916,12 @@ button {
   scroll-margin-top: 76px;
 }
 
+/* Wraps the current week's per-day sections so the "This week" stat tile
+   still has one anchor to jump to, same scroll offset as .task-section. */
+.task-week-group {
+  scroll-margin-top: 76px;
+}
+
 .my-tasks-search {
   display: block;
   width: 100%;

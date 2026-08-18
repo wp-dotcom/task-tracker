@@ -120,20 +120,20 @@ export function isCalendarEventDueSoon(
 }
 
 /**
- * True if `dateStr` falls within the current local calendar week
- * (Sunday-Saturday, matching the calendar's firstDay=0), including today.
- * Used to split "upcoming" tasks into "this week" vs. "future" groups.
+ * The Sunday-Saturday range (matching the calendar's firstDay=0) for the
+ * week `weeksFromNow` weeks after the current one — 0 is this week, 1 is
+ * next week, etc. `start` is local midnight on that Sunday; `end` is the
+ * last instant of that Saturday. Used to break My Tasks into a per-day
+ * breakdown for the current week and per-week buckets beyond it.
  */
-export function isWithinCurrentWeek(dateStr: string): boolean {
-  const date = parseLocalDate(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-  return date.getTime() >= startOfWeek.getTime() && date.getTime() <= endOfWeek.getTime();
+export function weekRange(weeksFromNow: number): { start: Date; end: Date } {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay() + weeksFromNow * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -159,6 +159,13 @@ const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
 });
+
+const weekdayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+
+/** Format a "YYYY-MM-DD" as its weekday name, e.g. "Wednesday". */
+export function formatWeekday(dateStr: string): string {
+  return weekdayFormatter.format(parseLocalDate(dateStr));
+}
 
 /** Format a "YYYY-MM-DD" due_date for display, e.g. "August 19, 2026". */
 export function formatDueDate(dateStr: string): string {

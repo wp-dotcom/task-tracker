@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useTasks } from '../context/TasksContext';
 import type { TaskWithProfiles } from '../types';
-import { isTaskDueToday, isTaskOverdue, isWithinCurrentWeek, todayLocalISODate } from '../lib/dates';
+import {
+  formatDueDateShort,
+  formatWeekday,
+  isTaskDueToday,
+  isTaskOverdue,
+  toLocalISODate,
+  todayLocalISODate,
+  weekRange,
+} from '../lib/dates';
 import { urgencyWeight } from '../lib/urgency';
 import TaskCard from '../components/TaskCard';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -17,6 +25,57 @@ function byUrgencyThenDate(a: TaskWithProfiles, b: TaskWithProfiles) {
 function matchesSearch(task: TaskWithProfiles, searchLower: string): boolean {
   if (!searchLower) return true;
   return `${task.title} ${task.description}`.toLowerCase().includes(searchLower);
+}
+
+interface DayBucket {
+  dateStr: string;
+  label: string;
+  tasks: TaskWithProfiles[];
+}
+
+interface WeekBucket {
+  key: string;
+  label: string;
+  tasks: TaskWithProfiles[];
+}
+
+const FUTURE_WEEK_LABELS = ['Next week', 'In 2 weeks', 'In 3 weeks'];
+
+/** One section per remaining day of the current week (tomorrow through Saturday) — today has its own section above. */
+function buildDayBuckets(upcoming: TaskWithProfiles[]): DayBucket[] {
+  const { end } = weekRange(0);
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  cursor.setDate(cursor.getDate() + 1); // start from tomorrow
+  const tomorrowStr = toLocalISODate(cursor);
+
+  const days: DayBucket[] = [];
+  while (cursor.getTime() <= end.getTime()) {
+    const dateStr = toLocalISODate(cursor);
+    days.push({
+      dateStr,
+      label: dateStr === tomorrowStr ? 'Tomorrow' : formatWeekday(dateStr),
+      tasks: upcoming.filter((t) => t.due_date === dateStr).sort(byUrgencyThenDate),
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
+/** One section per each of the next 3 full weeks after this one — anything beyond that isn't shown at all. */
+function buildFutureWeekBuckets(upcoming: TaskWithProfiles[]): WeekBucket[] {
+  return [1, 2, 3].map((offset) => {
+    const { start, end } = weekRange(offset);
+    const startStr = toLocalISODate(start);
+    const endStr = toLocalISODate(end);
+    return {
+      key: startStr,
+      label: `${FUTURE_WEEK_LABELS[offset - 1]} (${formatDueDateShort(startStr)} – ${formatDueDateShort(endStr)})`,
+      tasks: upcoming
+        .filter((t) => t.due_date >= startStr && t.due_date <= endStr)
+        .sort((a, b) => a.due_date.localeCompare(b.due_date) || byUrgencyThenDate(a, b)),
+    };
+  });
 }
 
 export default function EmployeeMyTasksPage() {
@@ -37,17 +96,19 @@ export default function EmployeeMyTasksPage() {
       .filter((t) => isTaskDueToday(t) && !isTaskOverdue(t))
       .sort(byUrgencyThenDate);
     const upcoming = open.filter((t) => !isTaskDueToday(t) && !isTaskOverdue(t));
-    const sortByDate = (a: TaskWithProfiles, b: TaskWithProfiles) =>
-      a.due_date.localeCompare(b.due_date) || byUrgencyThenDate(a, b);
-    // Split "upcoming" so the rest of this week (Sun-Sat) is visually
-    // separated from tasks further out, which matter less right now.
-    const thisWeek = upcoming.filter((t) => isWithinCurrentWeek(t.due_date)).sort(sortByDate);
-    const future = upcoming.filter((t) => !isWithinCurrentWeek(t.due_date)).sort(sortByDate);
+
+    // Rest of this week (tomorrow through Saturday), one section per day —
+    // and the next 3 full weeks after that, one section per week. Anything
+    // due later than that isn't shown here at all; it'll still show up once
+    // it falls inside that window on a later visit, or on the Calendar.
+    const days = buildDayBuckets(upcoming);
+    const futureWeeks = buildFutureWeekBuckets(upcoming);
+
     const completed = tasks
       .filter((t) => t.status === 'completed')
       .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
 
-    return { overdue, today, thisWeek, future, completed };
+    return { overdue, today, days, futureWeeks, completed };
   }, [tasks]);
 
   // Stats always reflect the real, unfiltered counts — search only narrows
@@ -55,10 +116,11 @@ export default function EmployeeMyTasksPage() {
   const stats = useMemo(() => {
     const todayStr = todayLocalISODate();
     const completedToday = groups.completed.filter((t) => t.completed_at?.slice(0, 10) === todayStr).length;
+    const thisWeek = groups.days.reduce((sum, d) => sum + d.tasks.length, 0);
     return {
       dueToday: groups.today.length,
       overdue: groups.overdue.length,
-      thisWeek: groups.thisWeek.length,
+      thisWeek,
       completedToday,
     };
   }, [groups]);
@@ -68,8 +130,11 @@ export default function EmployeeMyTasksPage() {
     () => ({
       overdue: groups.overdue.filter((t) => matchesSearch(t, searchLower)),
       today: groups.today.filter((t) => matchesSearch(t, searchLower)),
-      thisWeek: groups.thisWeek.filter((t) => matchesSearch(t, searchLower)),
-      future: groups.future.filter((t) => matchesSearch(t, searchLower)),
+      days: groups.days.map((d) => ({ ...d, tasks: d.tasks.filter((t) => matchesSearch(t, searchLower)) })),
+      futureWeeks: groups.futureWeeks.map((w) => ({
+        ...w,
+        tasks: w.tasks.filter((t) => matchesSearch(t, searchLower)),
+      })),
       completed: groups.completed.filter((t) => matchesSearch(t, searchLower)),
     }),
     [groups, searchLower],
@@ -78,14 +143,14 @@ export default function EmployeeMyTasksPage() {
   const nothingDue =
     groups.overdue.length === 0 &&
     groups.today.length === 0 &&
-    groups.thisWeek.length === 0 &&
-    groups.future.length === 0;
+    groups.days.every((d) => d.tasks.length === 0) &&
+    groups.futureWeeks.every((w) => w.tasks.length === 0);
 
   const totalMatches =
     displayGroups.overdue.length +
     displayGroups.today.length +
-    displayGroups.thisWeek.length +
-    displayGroups.future.length +
+    displayGroups.days.reduce((sum, d) => sum + d.tasks.length, 0) +
+    displayGroups.futureWeeks.reduce((sum, w) => sum + w.tasks.length, 0) +
     displayGroups.completed.length;
   const noSearchResults = searchLower !== '' && totalMatches === 0;
 
@@ -184,18 +249,21 @@ export default function EmployeeMyTasksPage() {
             />
           )}
 
-          {displayGroups.thisWeek.length > 0 && (
-            <TaskSection
-              id="my-tasks-week"
-              title="This Week"
-              tasks={displayGroups.thisWeek}
-              onSelect={setSelectedTask}
-            />
+          {displayGroups.days.some((d) => d.tasks.length > 0) && (
+            <div id="my-tasks-week" className="task-week-group">
+              {displayGroups.days
+                .filter((d) => d.tasks.length > 0)
+                .map((d) => (
+                  <TaskSection key={d.dateStr} title={d.label} tasks={d.tasks} onSelect={setSelectedTask} />
+                ))}
+            </div>
           )}
 
-          {displayGroups.future.length > 0 && (
-            <TaskSection title="Future" tasks={displayGroups.future} onSelect={setSelectedTask} />
-          )}
+          {displayGroups.futureWeeks
+            .filter((w) => w.tasks.length > 0)
+            .map((w) => (
+              <TaskSection key={w.key} title={w.label} tasks={w.tasks} onSelect={setSelectedTask} />
+            ))}
 
           {displayGroups.completed.length > 0 && (
             <TaskSection

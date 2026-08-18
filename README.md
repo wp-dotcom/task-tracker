@@ -588,8 +588,8 @@ same calendar and task list:
   picker — just a title, optional notes, urgency, due date, and optional
   time.
 - A self-added task behaves exactly like any other task on your list — mark
-  it **Complete**, **Reopen** it, and it shows up in the Overdue/Today/This
-  Week/Future/Completed sections the same way. You can also edit or delete
+  it **Complete**, **Reopen** it, and it shows up in the Overdue/Today/day-by-
+  day/future-week/Completed sections the same way. You can also edit or delete
   a task you added yourself (unlike an admin-assigned task, which only the
   admin can edit or delete).
 - The admin sees every self-added task too, labeled **"Self-added by
@@ -673,6 +673,18 @@ A handful of quality-of-life additions on top of the core workflow:
   Completed) sit above the task list, mirroring the calendar's summary
   tiles; tapping one jumps straight to that section instead of just
   displaying a number.
+- **My Tasks day-by-day and future-week breakdown.** Below Overdue and
+  Today, the rest of the current week (tomorrow through Saturday) is broken
+  out one section per day — "Tomorrow", then each remaining weekday by name
+  (e.g. "Wednesday", "Thursday") — so you can see exactly what's due on
+  which day at a glance instead of one lumped-together list. After that,
+  the next three calendar weeks each get their own section too — "Next week
+  (Aug 23 – Aug 29)", "In 2 weeks (...)", "In 3 weeks (...)" — using the
+  same Sunday–Saturday week boundaries as the calendar. A task due further
+  out than that isn't shown on My Tasks at all (it'll appear once it falls
+  inside that window on a later visit, or you can always find it on the
+  Calendar); an empty day or week section is simply skipped rather than
+  shown with a "0".
 
 ## Task notes & photos
 
@@ -794,7 +806,8 @@ never a second employee, even via a direct API call.
 - [ ] `+ Add Task` creates "Move teak dresser", assigned to the employee, due
       tomorrow, urgency Urgent — and it appears on the calendar in red.
 - [ ] Employee logs in, lands on **My Tasks**, and sees the task under
-      "Today"/"This Week"/"Future" (or "Overdue" once its deadline passes).
+      "Today"/its day-of-week or "Tomorrow"/its future-week section (or
+      "Overdue" once its deadline passes).
 - [ ] Before opening it, the admin's task details show "Not viewed yet."
 - [ ] Employee opens the task; admin's view now shows an exact viewed
       timestamp.
@@ -835,9 +848,13 @@ never a second employee, even via a direct API call.
       the top of My Tasks, a numbered badge next to "My Tasks" in the nav,
       and the browser tab title shows the count (e.g. "(2) Mid Haven Furniture").
       All three go away once every task has been opened.
-- [ ] On **My Tasks**, a task due later this week appears under "This Week"
-      and a task due next week or later appears under "Future" — two
-      separate sections instead of one combined "Upcoming" list.
+- [ ] On **My Tasks**, a task due tomorrow appears under "Tomorrow", a task
+      due later this week appears under its own weekday-named section (e.g.
+      "Friday"), and a task due in the next 1–3 weeks appears under "Next
+      week"/"In 2 weeks"/"In 3 weeks" with the correct date range in its
+      heading — each a separate section, one per day for this week and one
+      per week beyond it. A task due more than 3 weeks out doesn't appear on
+      My Tasks at all.
 - [ ] The app is usable on a phone-sized screen, and "Mark Complete" is easy
       to tap.
 - [ ] Creating a preset under **Templates**, then selecting it from "Start
