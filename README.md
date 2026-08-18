@@ -430,6 +430,17 @@ app — it always loads the latest live version over the network rather than
 caching pages, so you'll never see a stale version stuck on a home screen
 icon after an update goes out.
 
+### Mobile navigation
+
+On a phone-width screen, navigation lives behind a **☰ menu button** in the
+top right, instead of a full sidebar (which only fits on wider screens) or
+a bottom tab bar. Tapping it opens a small dropdown with the same
+pages/links as the desktop sidebar, plus your name/role and **Log out** at
+the bottom; tapping a link, tapping outside the menu, or pressing Esc
+closes it again. The same "New" badge that shows on **My Tasks** in the
+desktop sidebar also shows here — as a small dot on the menu button itself
+before you open it, and as a number next to My Tasks once it's open.
+
 ## Appointments & deliveries
 
 Unlike tasks (which only an admin creates and assigns), **any signed-in
@@ -711,3 +722,14 @@ preserving completed ones as history.
       views manually.
 - [ ] On a normal desktop-width browser window, the calendar's default view
       is unchanged from before (admin: month, employee: week).
+- [ ] On a phone-width screen, navigation is a **☰** button in the top
+      right (no bottom tab bar, no full sidebar); tapping it opens a
+      dropdown with the same links the desktop sidebar has.
+- [ ] Tapping a link in that menu navigates and closes the menu; tapping
+      outside it or pressing Esc also closes it without navigating.
+- [ ] As an employee with an unviewed task, a small dot shows on the ☰
+      button itself (before opening the menu), and the numbered "New"
+      badge shows next to My Tasks once the menu is open — both disappear
+      once every task's been viewed.
+- [ ] On a normal desktop-width browser window, the full sidebar still
+      shows on the left as before, with no ☰ button visible anywhere.

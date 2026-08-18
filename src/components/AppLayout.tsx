@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
@@ -29,6 +29,7 @@ export default function AppLayout() {
   const { profile, signOut } = useAuth();
   const { tasks } = useTasks();
   const nav = profile?.role === 'admin' ? ADMIN_NAV : EMPLOYEE_NAV;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Unviewed, still-open tasks — the whole point of "New" is that the
   // employee hasn't looked at it yet, so completed tasks don't count.
@@ -48,6 +49,17 @@ export default function AppLayout() {
       document.title = BASE_TITLE;
     };
   }, [profile?.role, unviewedCount]);
+
+  // Dismiss the mobile menu on Escape, same pattern as the calendar's
+  // quick-create popover.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
 
   return (
     <div className="app-shell">
@@ -91,33 +103,76 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      <nav className="mobile-tabbar" aria-label="Primary">
-        {nav.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `mobile-tab${isActive ? ' active' : ''}`}
-          >
-            <span className="mobile-tab-icon" aria-hidden="true">
-              {item.icon}
-              {item.to === '/my-tasks' && unviewedCount > 0 && <span className="nav-badge-dot" />}
-            </span>
-            <span>
-              {item.label}
-              {item.to === '/my-tasks' && unviewedCount > 0 && (
-                <span className="visually-hidden">
-                  {' '}
-                  ({unviewedCount} new, unviewed task{unviewedCount === 1 ? '' : 's'})
-                </span>
-              )}
-            </span>
-          </NavLink>
-        ))}
-        <button type="button" className="mobile-tab" onClick={() => signOut()}>
-          <span aria-hidden="true">⎋</span>
-          <span>Log out</span>
+      <header className="mobile-topbar">
+        <span className="mobile-topbar-brand">Task Tracker</span>
+        <button
+          type="button"
+          className="mobile-menu-button"
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span aria-hidden="true">☰</span>
+          {profile?.role === 'employee' && unviewedCount > 0 && (
+            <>
+              <span className="nav-badge-dot" aria-hidden="true" />
+              <span className="visually-hidden">
+                {unviewedCount} new, unviewed task{unviewedCount === 1 ? '' : 's'}
+              </span>
+            </>
+          )}
         </button>
-      </nav>
+      </header>
+
+      {menuOpen && (
+        <>
+          <div
+            className="mobile-menu-backdrop"
+            role="presentation"
+            onClick={() => setMenuOpen(false)}
+          />
+          <nav className="mobile-menu" aria-label="Primary">
+            {nav.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `mobile-menu-link${isActive ? ' active' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span className="mobile-menu-icon" aria-hidden="true">
+                  {item.icon}
+                </span>
+                {item.label}
+                {item.to === '/my-tasks' && unviewedCount > 0 && (
+                  <span className="nav-badge">
+                    <span aria-hidden="true">{unviewedCount}</span>
+                    <span className="visually-hidden">
+                      {unviewedCount} new, unviewed task{unviewedCount === 1 ? '' : 's'}
+                    </span>
+                  </span>
+                )}
+              </NavLink>
+            ))}
+            <div className="mobile-menu-divider" />
+            <div className="mobile-menu-user">
+              <div className="sidebar-user-name">{profile?.full_name}</div>
+              <div className="sidebar-user-role">
+                {profile?.role === 'admin' ? 'Admin' : 'Employee'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="mobile-menu-logout"
+              onClick={() => {
+                setMenuOpen(false);
+                signOut();
+              }}
+            >
+              <span aria-hidden="true">⎋</span> Log out
+            </button>
+          </nav>
+        </>
+      )}
     </div>
   );
 }
