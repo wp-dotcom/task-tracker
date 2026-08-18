@@ -3,7 +3,7 @@ import type { TaskWithProfiles } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import { useTaskEvents } from '../hooks/useTaskEvents';
-import { formatDueDate, formatDueTime, formatTimestamp, isTaskOverdue } from '../lib/dates';
+import { formatDueDate, formatDueTime, formatTimestamp, isTaskDueSoon, isTaskOverdue } from '../lib/dates';
 import { getErrorMessage } from '../lib/errors';
 import UrgencyBadge from './UrgencyBadge';
 import ActivityLog from './ActivityLog';
@@ -55,6 +55,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
   if (!task) return null;
 
   const overdue = isTaskOverdue(task);
+  const dueSoon = isTaskDueSoon(task);
 
   async function handleComplete() {
     if (!task) return;
@@ -140,8 +141,10 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         </div>
 
         <div className="task-details-meta">
-          <span className={`status-pill status-${task.status}`}>
-            {task.status === 'completed' ? 'Completed' : overdue ? 'Overdue' : 'Open'}
+          <span
+            className={`status-pill status-${task.status}${dueSoon ? ' status-due-soon' : ''}`}
+          >
+            {task.status === 'completed' ? 'Completed' : overdue ? 'Overdue' : dueSoon ? 'Due soon' : 'Open'}
           </span>
           {isAdmin && (
             <span className="task-details-assignee">

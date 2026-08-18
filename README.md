@@ -394,6 +394,31 @@ level. Every one of these disappears the instant the employee opens the
 task — nothing needs to be dismissed manually. (The pulsing animation
 respects the OS-level "reduce motion" accessibility setting.)
 
+## Due-soon flashing
+
+An open (not completed) task starts **flashing an amber ring** as its
+deadline gets close, everywhere it appears — the task card on My Tasks/the
+Tasks list, the FullCalendar grid on desktop, and the agenda list on the
+phone calendar — plus a matching amber **"Due soon" pill** and a "Due soon"
+status in the task details view. This is a separate signal from "Overdue"
+(red) and "New/unviewed" (purple) — a task only ever shows one of the three
+at a time (once it's actually overdue, the flashing stops and the red
+"Overdue" styling takes over instead).
+
+"Due soon" means:
+
+- A task **with a specific due time** starts flashing 2 hours before that
+  time.
+- A task **with no specific time** (just a due date) starts flashing for
+  its entire due date, since there's no narrower time window to measure
+  against.
+
+This updates live — a task starts (and stops) flashing on its own as time
+passes, even if you don't touch anything else in the app, so leaving the
+Calendar or My Tasks page open through the day is enough to catch it. (Like
+the unviewed-task pulse, this respects the OS-level "reduce motion"
+accessibility setting.)
+
 ## Calendar starting view
 
 The employee's Calendar page opens on the **week** view by default (instead
@@ -759,3 +784,19 @@ preserving completed ones as history.
       once every task's been viewed.
 - [ ] On a normal desktop-width browser window, the full sidebar still
       shows on the left as before, with no ☰ button visible anywhere.
+- [ ] An open task with a due time starts flashing an amber ring (task card,
+      calendar event, and phone agenda item alike) once it's within 2 hours
+      of that time, with a matching amber "Due soon" pill; it stops
+      flashing — and turns into the red "Overdue" styling instead — the
+      moment the time passes.
+- [ ] An open task with no due time (just a due date) flashes for its whole
+      due date, not just the last couple of hours before midnight.
+- [ ] A completed task never flashes, regardless of its due date/time.
+- [ ] Leaving a task list or the calendar open without touching anything,
+      a task starts flashing on its own once it crosses into its due-soon
+      window (no click/refresh needed) — give it a minute or two after the
+      threshold passes.
+- [ ] The task details view shows a "Due soon" status (amber) instead of
+      "Open" for a due-soon task, and "Overdue" once it's past due.
+- [ ] With the OS "reduce motion" accessibility setting on, due-soon tasks
+      show their amber styling but don't animate/flash.

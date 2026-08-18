@@ -1,5 +1,6 @@
 import type { TaskWithProfiles } from '../types';
-import { formatDueDate, formatDueTime, isTaskOverdue } from '../lib/dates';
+import { formatDueDate, formatDueTime, isTaskDueSoon, isTaskOverdue } from '../lib/dates';
+import { useNow } from '../lib/useNow';
 import UrgencyBadge from './UrgencyBadge';
 
 interface TaskCardProps {
@@ -9,14 +10,18 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, onClick, showAssignee = false }: TaskCardProps) {
+  // Ticks every minute so a task starts flashing exactly when it becomes due
+  // soon, not just whenever something else happens to re-render this card.
+  const now = useNow();
   const overdue = isTaskOverdue(task);
   const completed = task.status === 'completed';
   const unviewed = !completed && !task.first_viewed_at;
+  const dueSoon = isTaskDueSoon(task, now);
 
   return (
     <button
       type="button"
-      className={`task-card${completed ? ' task-card-completed' : ''}${overdue ? ' task-card-overdue' : ''}${unviewed ? ' task-card-unviewed' : ''}`}
+      className={`task-card${completed ? ' task-card-completed' : ''}${overdue ? ' task-card-overdue' : ''}${unviewed ? ' task-card-unviewed' : ''}${dueSoon ? ' task-card-due-soon' : ''}`}
       onClick={onClick}
     >
       <div className="task-card-main">
@@ -37,6 +42,7 @@ export default function TaskCard({ task, onClick, showAssignee = false }: TaskCa
       </div>
       <div className="task-card-side">
         {overdue && !completed && <span className="overdue-pill">Overdue</span>}
+        {dueSoon && <span className="due-soon-pill">Due soon</span>}
         {unviewed && <span className="new-pill">New</span>}
         <UrgencyBadge urgency={task.urgency} />
       </div>

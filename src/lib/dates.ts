@@ -66,6 +66,36 @@ export function isTaskDueToday(task: Pick<Task, 'due_date'>): boolean {
   return task.due_date === todayLocalISODate();
 }
 
+/** How far ahead of a timed deadline a task counts as "due soon" (see isTaskDueSoon). */
+export const DUE_SOON_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+/**
+ * True for an open (not completed, not yet overdue) task whose deadline is
+ * imminent — used to flash it in task lists/the calendar as a heads-up
+ * before it's actually late. A task with a specific due_time counts as due
+ * soon once it's within DUE_SOON_WINDOW_MS of that time. An all-day task
+ * (no due_time) has no specific time to measure hours against, so it counts
+ * as due soon for its entire due date instead — otherwise it would only
+ * start flashing a couple of hours before midnight, which isn't useful.
+ * Stops being "due soon" the moment it's overdue instead — overdue already
+ * has its own, stronger red styling, so the two never overlap.
+ *
+ * `now` defaults to the current time, but callers that re-render on a timer
+ * (see useNow()) should pass their ticked value through — that's what
+ * actually makes a task start flashing without requiring some unrelated
+ * change to trigger a re-render first.
+ */
+export function isTaskDueSoon(
+  task: Pick<Task, 'due_date' | 'due_time' | 'status'>,
+  now: number = Date.now(),
+): boolean {
+  if (task.status === 'completed') return false;
+  const deadline = taskDeadline(task).getTime();
+  if (deadline <= now) return false;
+  if (!task.due_time) return task.due_date === todayLocalISODate();
+  return deadline - now <= DUE_SOON_WINDOW_MS;
+}
+
 /**
  * True if `dateStr` falls within the current local calendar week
  * (Sunday-Saturday, matching the calendar's firstDay=0), including today.

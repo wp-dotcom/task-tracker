@@ -31,6 +31,10 @@
      is never mistaken for an urgency level. */
   --color-unviewed-accent: #7c3aed;
   --color-unviewed-accent-bg: #f1e9fe;
+  /* Amber — distinct from unviewed (purple), overdue (red), and the urgency
+     palette, so "due soon" always reads as its own, separate signal. */
+  --color-due-soon-accent: #b45309;
+  --color-due-soon-accent-bg: #fef3c7;
   --radius: 8px;
   --radius-sm: 6px;
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
@@ -374,11 +378,26 @@ button {
   }
 }
 
+/* A slower, wider ring than badge-pulse (amber instead of purple) — applied
+   to the whole card/event rather than a small corner dot, since "due soon"
+   needs to catch the eye in a full list or calendar grid, not just a badge. */
+@keyframes due-soon-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(180, 83, 9, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nav-badge,
   .nav-badge-dot,
   .new-pill,
-  .fc-task-unviewed::after {
+  .fc-task-unviewed::after,
+  .task-card-due-soon,
+  .fc-task-due-soon {
     animation: none !important;
   }
 }
@@ -573,9 +592,25 @@ button {
   color: var(--color-success);
 }
 
+.status-due-soon {
+  background: var(--color-due-soon-accent-bg);
+  color: var(--color-due-soon-accent);
+}
+
 .overdue-pill {
   background: var(--color-danger-bg);
   color: var(--color-danger);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.due-soon-pill {
+  background: var(--color-due-soon-accent-bg);
+  color: var(--color-due-soon-accent);
   font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 7px;
@@ -632,8 +667,17 @@ button {
   background: var(--color-unviewed-accent-bg);
 }
 
-/* Overdue is the more urgent signal, so it wins the left-edge colour when a
-   task is both overdue and unviewed; the "New" pill still shows either way. */
+/* More time-critical than merely unviewed, so it wins the left-edge colour
+   (but keeps the unviewed background tint and "New" pill, if both apply) —
+   and it flashes, via due-soon-flash below, so it's noticeable even in a
+   long list without having to read every due date. */
+.task-card-due-soon {
+  border-left-color: var(--color-due-soon-accent);
+  animation: due-soon-flash 1.6s ease-in-out infinite;
+}
+
+/* Overdue is the most urgent signal of all, so it wins the left-edge colour
+   over both of the above; the "Overdue"/"New" pills still show either way. */
 .task-card-overdue {
   border-left-color: var(--color-danger);
 }
@@ -1027,6 +1071,12 @@ button {
 
 .fc-task-unviewed .fc-task-title-line {
   font-weight: 800;
+}
+
+/* Flashes an open task's calendar entry once its deadline is imminent — see
+   isTaskDueSoon() and the due-soon-flash keyframes near badge-pulse above. */
+.fc-task-due-soon {
+  animation: due-soon-flash 1.6s ease-in-out infinite;
 }
 
 .fc .fc-toolbar-title {

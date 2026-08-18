@@ -8,7 +8,8 @@ import type { EventClickArg, EventDropArg, DateSelectArg, EventContentArg } from
 import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
 import { useTasks } from '../context/TasksContext';
 import { useUrgency } from '../context/UrgencyContext';
-import { formatDueDate, toLocalHHMM, toLocalISODate } from '../lib/dates';
+import { formatDueDate, isTaskDueSoon, toLocalHHMM, toLocalISODate } from '../lib/dates';
+import { useNow } from '../lib/useNow';
 import { getErrorMessage } from '../lib/errors';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
 import ConfirmDialog from './ConfirmDialog';
@@ -154,6 +155,9 @@ export default function TaskCalendar({
   const [saving, setSaving] = useState(false);
   const [quickCreate, setQuickCreate] = useState<QuickCreateState | null>(null);
   const [isMobile] = useState(() => isNarrowScreen());
+  // Ticks every minute so an event starts flashing exactly when it becomes
+  // due soon, not just whenever tasks/calendarEvents happen to change.
+  const now = useNow();
 
   const canCreateTask = Boolean(onDateClick);
   const canCreateCalendarEvent = Boolean(onCalendarEventDateClick);
@@ -185,6 +189,7 @@ export default function TaskCalendar({
           `fc-task-urgency-${task.urgency}`,
           task.status === 'completed' ? 'fc-task-completed' : '',
           !task.first_viewed_at && task.status !== 'completed' ? 'fc-task-unviewed' : '',
+          isTaskDueSoon(task, now) ? 'fc-task-due-soon' : '',
         ].filter(Boolean),
         extendedProps: { kind: 'task' as const, task, urgencyIcon: meta.icon, urgencyLabel: meta.label },
       };
@@ -212,7 +217,7 @@ export default function TaskCalendar({
     });
 
     return [...taskEvents, ...calEvents];
-  }, [tasks, calendarEvents, urgencyMeta]);
+  }, [tasks, calendarEvents, urgencyMeta, now]);
 
   function handleEventClick(arg: EventClickArg) {
     const kind = arg.event.extendedProps.kind as 'task' | 'calendar_event';
