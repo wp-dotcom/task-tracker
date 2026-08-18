@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useUrgency } from '../context/UrgencyContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { URGENCY_ORDER, buildUrgencyMeta, tintFromColor } from '../lib/urgency';
 import type { TaskUrgency } from '../types';
 import { getErrorMessage } from '../lib/errors';
+import { downloadBackup } from '../lib/backup';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AdminSettingsPage() {
   const { urgencyMeta, loading, error, updateColor } = useUrgency();
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<TaskUrgency, string>>(() => {
     const initial = {} as Record<TaskUrgency, string>;
     URGENCY_ORDER.forEach((u) => {
@@ -54,6 +59,20 @@ export default function AdminSettingsPage() {
       setSaveError(getErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleBackup() {
+    if (!profile) return;
+    setBackingUp(true);
+    setBackupError(null);
+    try {
+      await downloadBackup(profile);
+      showToast('Backup downloaded');
+    } catch (err) {
+      setBackupError(getErrorMessage(err));
+    } finally {
+      setBackingUp(false);
     }
   }
 
@@ -124,6 +143,29 @@ export default function AdminSettingsPage() {
             Reset to defaults
           </button>
           {saved && <span className="muted">Saved.</span>}
+        </div>
+      </div>
+
+      <div className="info-panel">
+        <h2>Backup &amp; restore</h2>
+        <p className="muted">
+          Downloads a zip file to this device with everything currently in the app: every
+          person, task, appointment, comment, photo record, preset, and recurring series.
+          It's meant to be read on its own — if the server ever loses its data, hand this file
+          to Claude and ask it to rebuild the database; the file has step-by-step restore
+          instructions built in.
+        </p>
+
+        {backupError && (
+          <div role="alert" className="form-error">
+            {backupError}
+          </div>
+        )}
+
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 20 }}>
+          <button type="button" className="btn btn-primary" onClick={handleBackup} disabled={backingUp || !profile}>
+            {backingUp ? 'Preparing backup...' : 'Download backup'}
+          </button>
         </div>
       </div>
 

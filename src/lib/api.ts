@@ -12,6 +12,7 @@ import type {
   TaskComment,
   TaskEvent,
   TaskPhoto,
+  TaskRecurrence,
   TaskTemplate,
   TaskUrgency,
   TaskWithProfiles,
@@ -499,4 +500,40 @@ export async function savePushSubscription(
 export async function deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
   const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
   if (error) throw error;
+}
+
+// -----------------------------------------------------------------------------
+// Backup export (admin only — see src/lib/backup.ts)
+// -----------------------------------------------------------------------------
+// Plain, unfiltered `select('*')` queries — RLS already limits these to
+// "everything" for an admin (see task_events_select / can_access_task /
+// task_recurrences_select in schema.sql) and to nothing useful for a
+// non-admin, so there's no need to filter client-side. Ordered by
+// created_at for a stable, chronological backup file.
+
+export async function fetchAllTaskEvents(): Promise<TaskEvent[]> {
+  const { data, error } = await supabase.from('task_events').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TaskEvent[];
+}
+
+export async function fetchAllTaskComments(): Promise<TaskComment[]> {
+  const { data, error } = await supabase.from('task_comments').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TaskComment[];
+}
+
+export async function fetchAllTaskPhotos(): Promise<TaskPhoto[]> {
+  const { data, error } = await supabase.from('task_photos').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TaskPhoto[];
+}
+
+export async function fetchAllTaskRecurrences(): Promise<TaskRecurrence[]> {
+  const { data, error } = await supabase
+    .from('task_recurrences')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TaskRecurrence[];
 }

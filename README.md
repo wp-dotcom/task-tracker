@@ -530,7 +530,7 @@ src/
   hooks/        Small data-fetching hooks (employees, task presets, task activity log, online status,
                 task comments, task photos, push notification status, calendar feed link)
   lib/          Supabase client, all Supabase queries/RPC calls, date/urgency helpers, error messages,
-                Web Push helpers
+                Web Push helpers, backup/export
   types/        Shared TypeScript types (Profile, Task, TaskEvent, TaskTemplate, PushSubscriptionRecord, enums)
 supabase/
   schema.sql    Everything you paste into the Supabase SQL editor
@@ -957,6 +957,55 @@ two independent sections:
   shared it somewhere you shouldn't have; the old one stops working the
   moment you do.
 
+## Backup & restore
+
+The admin **Settings** page has a **Backup & restore** section with a single
+**Download backup** button. Clicking it fetches everything currently in the
+app — every person, task, activity-log entry, comment, photo record (not the
+photo files themselves), preset, recurring series, urgency color, and
+calendar appointment/delivery — and downloads a zip
+(`mid-haven-furniture-backup-<date>.zip`) straight to the admin's device.
+Nothing is uploaded anywhere; it's a normal browser download using data the
+admin's own account can already see, the same as any other page in the app.
+
+The zip has two files, meant for two different readers:
+
+- **`README.md`** — a plain-language Markdown summary (people, tasks grouped
+  by assignee, appointments/deliveries, presets, recurring series, urgency
+  colors) meant to be opened and read directly, without any special
+  software, if you just want to see what's in the app as of that backup.
+- **`backup.json`** — the complete, exact data, including internal ids and
+  relationships between tables. This is the one that matters if the Supabase
+  project ever loses its data: it has its own `meta.restore_instructions`
+  field spelling out the rebuild steps (re-run `schema.sql`, recreate each
+  `auth.users` row before its matching `profiles` row, then insert every
+  other table in dependency order, preserving ids and timestamps exactly).
+  If that ever happens, hand both files to Claude and ask it to rebuild the
+  database — the instructions are written for that, so it should be a
+  mechanical job rather than something you need to piece together by hand.
+
+A few things are deliberately left out, and `backup.json` says so explicitly
+in its own `meta.intentionally_excluded` list:
+
+- **Login passwords** — Supabase never exposes these to anyone, including
+  this export; a restored account needs its password reset (see "Password
+  reset" above).
+- **Photo image files themselves** — `task_photos` restores the metadata and
+  a link to each photo, not the image bytes, so a photo shows broken after a
+  restore until it's re-uploaded to the same storage path. (Photos tend to
+  be the largest part of the data and are the one thing not practical to
+  bundle into a downloadable zip from the browser; everything else fully
+  restores.)
+- **Push notification device registrations** and **calendar-sync feed
+  tokens** — both are re-created automatically (a device re-subscribes the
+  next time someone enables notifications; a feed token regenerates the
+  next time someone opens their Notifications page), so backing them up
+  would just be stale data.
+
+There's no scheduled/automatic backup — it's a manual, on-demand download,
+so it's worth making it a habit (e.g. after a busy week, or before any
+schema change) rather than something to rely on happening by itself.
+
 ## How the security model works (short version)
 
 - Every table has Row Level Security **enabled**, and access is granted only
@@ -1327,3 +1376,7 @@ never a second employee, even via a direct API call.
       assigning a task to that person, a task nearing its due time, and a
       task going overdue each produce exactly one notification — not one
       per scheduled check — and tapping a notification opens the app.
+- [ ] On the admin **Settings** page, **Download backup** downloads a zip
+      containing a `backup.json` and a `README.md`; the README reads clearly
+      on its own, and the JSON contains every person, task, appointment,
+      preset, and recurring series currently in the app.
