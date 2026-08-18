@@ -350,6 +350,10 @@ everything in at once — you can still change any field, including urgency,
 before saving. You can also create a preset on the fly from inside the Add
 Task form itself via **+ New preset**, without losing your place.
 
+Tapping a preset in the Templates list opens a quick view of it (its full
+instructions and urgency) with **Edit**, **Delete**, and **Close** — the
+same look-before-you-touch pattern as opening a task.
+
 Presets are admin-only and never shown to or usable by employees — they're
 purely a shortcut for creating real tasks faster.
 
@@ -533,6 +537,12 @@ the bottom; tapping a link, tapping outside the menu, or pressing Esc
 closes it again. The same "New" badge that shows on **My Tasks** in the
 desktop sidebar also shows here — as a small dot on the menu button itself
 before you open it, and as a number next to My Tasks once it's open.
+
+The menu button itself is sized for an easy thumb tap. The **Mid Haven
+Furniture** name next to it (and the same name at the top of the desktop
+sidebar) is a link back to your own task list — the Tasks page for the
+admin, My Tasks for an employee — a quick way home from anywhere in the
+app.
 
 ## Appointments & deliveries
 
@@ -1004,3 +1014,13 @@ never a second employee, even via a direct API call.
       closes it without changing the value.
 - [ ] A dropdown near the bottom of a form opens upward instead of running
       off the bottom of the screen.
+- [ ] Tapping a preset on the Templates page opens a view of it (urgency +
+      full instructions) with Edit/Delete/Close, instead of jumping
+      straight into editing.
+- [ ] From that view, Edit opens the same preset form pre-filled; Delete
+      asks for confirmation first.
+- [ ] On a phone-width screen, the ☰ menu button is noticeably bigger/easier
+      to tap than before.
+- [ ] Tapping "Mid Haven Furniture" (top-left of the sidebar on desktop, or
+      the mobile top bar) takes the admin to Tasks and an employee to My
+      Tasks.

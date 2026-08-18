@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import OfflineBanner from './OfflineBanner';
@@ -27,7 +27,10 @@ const EMPLOYEE_NAV: NavItem[] = [
 export default function AppLayout() {
   const { profile, signOut } = useAuth();
   const { tasks } = useTasks();
-  const nav = profile?.role === 'admin' ? ADMIN_NAV : EMPLOYEE_NAV;
+  const isAdmin = profile?.role === 'admin';
+  const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+  // Where tapping the brand/logo takes you — each role's own task list.
+  const tasksPath = isAdmin ? '/tasks' : '/my-tasks';
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Unviewed, still-open tasks — the whole point of "New" is that the
@@ -63,7 +66,9 @@ export default function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">Mid Haven Furniture</div>
+        <Link to={tasksPath} className="sidebar-brand">
+          Mid Haven Furniture
+        </Link>
         <nav className="sidebar-nav">
           {nav.map((item) => (
             <NavLink
@@ -100,7 +105,9 @@ export default function AppLayout() {
       </main>
 
       <header className="mobile-topbar">
-        <span className="mobile-topbar-brand">Mid Haven Furniture</span>
+        <Link to={tasksPath} className="mobile-topbar-brand">
+          Mid Haven Furniture
+        </Link>
         <button
           type="button"
           className="mobile-menu-button"

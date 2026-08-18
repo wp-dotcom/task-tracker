@@ -1,45 +1,18 @@
 import { useState } from 'react';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
-import { useToast } from '../context/ToastContext';
 import type { TaskTemplate } from '../types';
 import TaskTemplateFormModal from '../components/TaskTemplateFormModal';
-import ConfirmDialog from '../components/ConfirmDialog';
+import TaskTemplateDetailsModal from '../components/TaskTemplateDetailsModal';
 import UrgencyBadge from '../components/UrgencyBadge';
 import { ListSkeleton } from '../components/Skeleton';
-import { getErrorMessage } from '../lib/errors';
 
 export default function AdminTemplatesPage() {
-  const { templates, loading, error, deleteTemplate } = useTaskTemplates();
-  const { showToast } = useToast();
+  const { templates, loading, error } = useTaskTemplates();
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<TaskTemplate | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<TaskTemplate | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [viewing, setViewing] = useState<TaskTemplate | null>(null);
 
   function openCreate() {
-    setEditing(null);
     setFormOpen(true);
-  }
-
-  function openEdit(template: TaskTemplate) {
-    setEditing(template);
-    setFormOpen(true);
-  }
-
-  async function handleDelete() {
-    if (!confirmDelete) return;
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      await deleteTemplate(confirmDelete.id);
-      setConfirmDelete(null);
-      showToast('Preset deleted');
-    } catch (err) {
-      setDeleteError(getErrorMessage(err));
-    } finally {
-      setDeleting(false);
-    }
   }
 
   return (
@@ -71,7 +44,12 @@ export default function AdminTemplatesPage() {
       ) : (
         <div className="task-list">
           {templates.map((template) => (
-            <div key={template.id} className="task-card template-card">
+            <button
+              key={template.id}
+              type="button"
+              className="task-card template-card"
+              onClick={() => setViewing(template)}
+            >
               <div className="task-card-main">
                 <span className="task-card-title">{template.title}</span>
                 {template.description && (
@@ -80,50 +58,15 @@ export default function AdminTemplatesPage() {
               </div>
               <div className="task-card-side">
                 <UrgencyBadge urgency={template.urgency} />
-                <button type="button" className="btn btn-ghost" onClick={() => openEdit(template)}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-danger-text"
-                  onClick={() => setConfirmDelete(template)}
-                >
-                  Delete
-                </button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
 
-      <TaskTemplateFormModal
-        open={formOpen}
-        template={editing}
-        onClose={() => setFormOpen(false)}
-      />
+      <TaskTemplateFormModal open={formOpen} onClose={() => setFormOpen(false)} />
 
-      <ConfirmDialog
-        open={Boolean(confirmDelete)}
-        title="Delete this preset?"
-        message={
-          confirmDelete
-            ? `"${confirmDelete.title}" will be removed from your preset list. This does not affect any tasks already created from it.`
-            : ''
-        }
-        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
-        danger
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => {
-          setConfirmDelete(null);
-          setDeleteError(null);
-        }}
-      />
-      {deleteError && (
-        <div role="alert" className="form-error">
-          {deleteError}
-        </div>
-      )}
+      <TaskTemplateDetailsModal template={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
