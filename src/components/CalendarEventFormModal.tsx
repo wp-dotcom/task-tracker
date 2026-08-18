@@ -7,6 +7,7 @@ import { getErrorMessage } from '../lib/errors';
 import { todayLocalISODate } from '../lib/dates';
 import { CALENDAR_EVENT_META, CALENDAR_EVENT_TYPES } from '../lib/calendarEventMeta';
 import TimeSelect from './TimeSelect';
+import Dropdown from './Dropdown';
 
 interface CalendarEventFormModalProps {
   open: boolean;
@@ -115,18 +116,15 @@ export default function CalendarEventFormModal({
           <label className="field-label" htmlFor="cal-event-type" style={{ marginTop: 0 }}>
             Type
           </label>
-          <select
+          <Dropdown
             id="cal-event-type"
-            className="field-input"
             value={eventType}
-            onChange={(e) => setEventType(e.target.value as CalendarEventType)}
-          >
-            {CALENDAR_EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {CALENDAR_EVENT_META[t].icon} {CALENDAR_EVENT_META[t].label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setEventType(v as CalendarEventType)}
+            options={CALENDAR_EVENT_TYPES.map((t) => ({
+              value: t,
+              label: `${CALENDAR_EVENT_META[t].icon} ${CALENDAR_EVENT_META[t].label}`,
+            }))}
+          />
 
           <label className="field-label" htmlFor="cal-event-title">
             Title

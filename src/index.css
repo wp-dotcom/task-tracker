@@ -254,6 +254,114 @@ button {
   font-family: inherit;
 }
 
+/* =============================================================================
+   Dropdown (custom-built replacement for native <select>)
+   ============================================================================= */
+.dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0.6em 0.75em;
+  font-size: 0.95rem;
+  font-family: inherit;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.dropdown-trigger:hover:not(:disabled) {
+  border-color: var(--color-text-faint);
+}
+
+.dropdown-trigger:focus-visible,
+.dropdown-trigger[aria-expanded='true'] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+  border-color: var(--color-primary);
+}
+
+.dropdown-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dropdown-trigger-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-trigger-placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-faint);
+}
+
+.dropdown-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-faint);
+  font-size: 0.75rem;
+  transition: transform 0.12s ease;
+}
+
+.dropdown-trigger[aria-expanded='true'] .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-listbox {
+  position: fixed;
+  z-index: 200;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 264px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5em 0.6em;
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-option.active {
+  background: var(--color-bg);
+}
+
+.dropdown-option.selected {
+  font-weight: 600;
+}
+
+.dropdown-option.disabled {
+  color: var(--color-text-faint);
+  cursor: default;
+}
+
+.dropdown-option-check {
+  flex-shrink: 0;
+  width: 1em;
+  color: var(--color-primary);
+  font-size: 0.85em;
+}
+
 .field-row {
   display: flex;
   gap: 16px;

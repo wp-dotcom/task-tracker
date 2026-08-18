@@ -5,6 +5,7 @@ import { useTaskTemplates } from '../hooks/useTaskTemplates';
 import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../lib/errors';
 import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
+import Dropdown from './Dropdown';
 
 interface TaskTemplateFormModalProps {
   open: boolean;
@@ -111,20 +112,14 @@ export default function TaskTemplateFormModal({
           <label className="field-label" htmlFor="template-urgency">
             Default urgency
           </label>
-          <select
+          <Dropdown
             id="template-urgency"
-            className="field-input"
             value={urgency}
-            onChange={(e) => setUrgency(e.target.value as TaskUrgency)}
-          >
-            {URGENCY_ORDER.slice()
+            onChange={(v) => setUrgency(v as TaskUrgency)}
+            options={URGENCY_ORDER.slice()
               .reverse()
-              .map((u) => (
-                <option key={u} value={u}>
-                  {URGENCY_META[u].label}
-                </option>
-              ))}
-          </select>
+              .map((u) => ({ value: u, label: URGENCY_META[u].label }))}
+          />
           <p className="muted" style={{ marginTop: 6, fontSize: '0.8rem' }}>
             You can still change the urgency each time you use this preset.
           </p>

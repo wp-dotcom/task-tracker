@@ -453,6 +453,17 @@ three ways: the **×** in its top-right corner, a clearly-bordered **Close**
 (or **Cancel**) button, or by clicking/tapping anywhere outside it. All
 three do the same thing everywhere in the app.
 
+## Dropdowns
+
+Every dropdown in the app (urgency, assignee, repeat frequency, appointment
+vs. delivery, filters, the time picker) is custom-built to match the rest
+of the app, rather than your browser/OS's plain default menu — same click,
+same keyboard behavior (arrow keys to move, Enter/Space to pick, Escape to
+cancel, typing a letter jumps to a matching option), just styled
+consistently everywhere. It also flips to open upward instead of downward
+when there isn't enough room below it (e.g. a field near the bottom of a
+tall form on a short screen).
+
 ## Calendar day hover
 
 On a computer (anything with a mouse, not a touchscreen), hovering over a
@@ -981,3 +992,15 @@ never a second employee, even via a direct API call.
       outside the pop-up, closes it.
 - [ ] On a computer, hovering over a day in month view (or a day column in
       week/day view) highlights it; this has no effect on a touchscreen.
+- [ ] Every dropdown (urgency, assignee, repeat, appointment/delivery type,
+      employee filter, time picker) opens a custom-styled list on click —
+      not your browser's plain system menu — with a checkmark next to the
+      selected option.
+- [ ] With a dropdown open, arrow keys move the highlight, Enter/Space picks
+      the highlighted option, Escape closes it without changing anything
+      and returns focus to the field, and typing a letter jumps to the next
+      option starting with it.
+- [ ] Clicking/tapping outside an open dropdown, or scrolling the page,
+      closes it without changing the value.
+- [ ] A dropdown near the bottom of a form opens upward instead of running
+      off the bottom of the screen.

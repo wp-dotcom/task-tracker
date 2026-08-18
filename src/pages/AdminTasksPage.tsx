@@ -11,6 +11,7 @@ import TaskFilterBar from '../components/TaskFilterBar';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import TaskFormModal from '../components/TaskFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Dropdown from '../components/Dropdown';
 import { ListSkeleton } from '../components/Skeleton';
 
 const VALID_FILTERS: TaskListFilter[] = [
@@ -249,22 +250,15 @@ export default function AdminTasksPage() {
             >
               Complete
             </button>
-            <select
-              className="field-input bulk-action-reassign"
+            <Dropdown
+              className="bulk-action-reassign"
               value=""
               disabled={bulkBusy || employees.length === 0}
-              onChange={(e) => handleBulkReassign(e.target.value)}
+              onChange={handleBulkReassign}
+              options={employees.map((emp) => ({ value: emp.id, label: emp.full_name }))}
+              placeholder="Reassign to..."
               aria-label="Reassign selected tasks to"
-            >
-              <option value="" disabled>
-                Reassign to...
-              </option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.full_name}
-                </option>
-              ))}
-            </select>
+            />
             <button
               type="button"
               className="btn btn-danger"

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import Dropdown from './Dropdown';
 
 interface TimeOption {
   value: string; // "HH:MM", 24-hour
@@ -48,7 +49,7 @@ export default function TimeSelect({
   value,
   onChange,
   emptyLabel = 'No time set',
-  className = 'field-input',
+  className = '',
   'aria-label': ariaLabel,
 }: TimeSelectProps) {
   // If the current value doesn't land on a 15-minute boundary (e.g. a task
@@ -61,20 +62,20 @@ export default function TimeSelect({
     return [...TIME_OPTIONS, custom].sort((a, b) => a.value.localeCompare(b.value));
   }, [value]);
 
+  const dropdownOptions = useMemo(
+    () => [{ value: '', label: emptyLabel }, ...options.map((opt) => ({ value: opt.value, label: opt.label }))],
+    [options, emptyLabel],
+  );
+
   return (
-    <select
+    <Dropdown
       id={id}
       className={className}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
+      options={dropdownOptions}
+      placeholder={emptyLabel}
       aria-label={ariaLabel}
-    >
-      <option value="">{emptyLabel}</option>
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    />
   );
 }

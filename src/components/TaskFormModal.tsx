@@ -18,6 +18,7 @@ import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
 import TaskTemplateFormModal from './TaskTemplateFormModal';
 import TimeSelect from './TimeSelect';
 import ConfirmDialog from './ConfirmDialog';
+import Dropdown from './Dropdown';
 
 interface TaskFormModalProps {
   open: boolean;
@@ -247,19 +248,16 @@ export default function TaskFormModal({
               <label className="field-label" htmlFor="task-template" style={{ marginTop: 0 }}>
                 Start from a preset <span className="field-optional">(optional)</span>
               </label>
-              <select
+              <Dropdown
                 id="task-template"
-                className="field-input"
                 value={selectedTemplateId}
-                onChange={(e) => handleTemplateSelect(e.target.value)}
-              >
-                <option value="">None — start blank</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
+                onChange={handleTemplateSelect}
+                options={[
+                  { value: '', label: 'None — start blank' },
+                  ...templates.map((t) => ({ value: t.id, label: t.title })),
+                ]}
+                placeholder="None — start blank"
+              />
             </div>
             <button
               type="button"
@@ -304,22 +302,13 @@ export default function TaskFormModal({
                 <label className="field-label" htmlFor="task-assignee">
                   Assigned to
                 </label>
-                <select
+                <Dropdown
                   id="task-assignee"
-                  className="field-input"
                   value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  required
-                >
-                  <option value="" disabled>
-                    {employeesLoading ? 'Loading...' : 'Select employee'}
-                  </option>
-                  {employees.map((emp: Profile) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.full_name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAssignedTo}
+                  options={employees.map((emp: Profile) => ({ value: emp.id, label: emp.full_name }))}
+                  placeholder={employeesLoading ? 'Loading...' : 'Select employee'}
+                />
               </div>
             )}
 
@@ -327,20 +316,14 @@ export default function TaskFormModal({
               <label className="field-label" htmlFor="task-urgency">
                 Urgency
               </label>
-              <select
+              <Dropdown
                 id="task-urgency"
-                className="field-input"
                 value={urgency}
-                onChange={(e) => setUrgency(e.target.value as TaskUrgency)}
-              >
-                {URGENCY_ORDER.slice()
+                onChange={(v) => setUrgency(v as TaskUrgency)}
+                options={URGENCY_ORDER.slice()
                   .reverse()
-                  .map((u) => (
-                    <option key={u} value={u}>
-                      {URGENCY_META[u].label}
-                    </option>
-                  ))}
-              </select>
+                  .map((u) => ({ value: u, label: URGENCY_META[u].label }))}
+              />
             </div>
           </div>
 
@@ -372,18 +355,18 @@ export default function TaskFormModal({
                 <label className="field-label" htmlFor="task-repeat">
                   Repeat <span className="field-optional">(optional)</span>
                 </label>
-                <select
+                <Dropdown
                   id="task-repeat"
-                  className="field-input"
                   value={repeat}
-                  onChange={(e) => setRepeat(e.target.value as TaskRecurrenceFrequency | 'none')}
-                >
-                  <option value="none">Does not repeat</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekdays">Every weekday (Mon–Fri)</option>
-                  <option value="weekly">Weekly (same day)</option>
-                  <option value="monthly">Monthly (same date)</option>
-                </select>
+                  onChange={(v) => setRepeat(v as TaskRecurrenceFrequency | 'none')}
+                  options={[
+                    { value: 'none', label: 'Does not repeat' },
+                    { value: 'daily', label: 'Daily' },
+                    { value: 'weekdays', label: 'Every weekday (Mon–Fri)' },
+                    { value: 'weekly', label: 'Weekly (same day)' },
+                    { value: 'monthly', label: 'Monthly (same date)' },
+                  ]}
+                />
               </div>
             </div>
           )}

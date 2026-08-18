@@ -1,4 +1,5 @@
 import type { Profile, TaskListFilter } from '../types';
+import Dropdown from './Dropdown';
 
 const FILTERS: { value: TaskListFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -48,19 +49,16 @@ export default function TaskFilterBar({
 
       <div className="filter-controls">
         {employees.length > 1 && (
-          <select
-            className="field-input filter-select"
+          <Dropdown
+            className="filter-select"
             value={employeeId}
-            onChange={(e) => onEmployeeChange(e.target.value)}
+            onChange={(v) => onEmployeeChange(v as string | 'all')}
+            options={[
+              { value: 'all', label: 'All employees' },
+              ...employees.map((emp) => ({ value: emp.id, label: emp.full_name })),
+            ]}
             aria-label="Filter by employee"
-          >
-            <option value="all">All employees</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.full_name}
-              </option>
-            ))}
-          </select>
+          />
         )}
 
         <input
