@@ -62,6 +62,21 @@ function truncate(text: string, maxLength: number): string {
   return `${trimmed.slice(0, maxLength).trimEnd()}…`;
 }
 
+// Below this width, a 7-column month (or even 7-day week) grid squeezes each
+// day into a sliver too narrow to read at a glance. On a screen this size we
+// default to a single day instead — fewer days on screen, but each one full
+// width, with the day's tasks/appointments stacked down the time axis
+// (scroll down for later hours) rather than crammed sideways. Only decided
+// once, from the screen size when the calendar first mounts — rotating the
+// phone or resizing a desktop window afterward doesn't yank the view out
+// from under you; the Day/Week/Month buttons in the toolbar always still
+// work to switch manually.
+const MOBILE_BREAKPOINT_PX = 640;
+
+function isNarrowScreen(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT_PX;
+}
+
 /** Shows the task title plus the start of its instructions, so the admin/
  * employee can get the gist without opening the task. Month-view cells are
  * narrower, so we keep the preview shorter there than in week/day view.
@@ -138,6 +153,7 @@ export default function TaskCalendar({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [quickCreate, setQuickCreate] = useState<QuickCreateState | null>(null);
+  const [effectiveInitialView] = useState(() => (isNarrowScreen() ? 'timeGridDay' : initialView));
 
   const canCreateTask = Boolean(onDateClick);
   const canCreateCalendarEvent = Boolean(onCalendarEventDateClick);
@@ -302,7 +318,7 @@ export default function TaskCalendar({
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView={initialView}
+        initialView={effectiveInitialView}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',

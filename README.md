@@ -252,13 +252,14 @@ where email = 'someone@example.com'
 on conflict (id) do nothing;
 ```
 
-**"Could not find the table 'public.calendar_events' in the schema cache."**
-(Or a similar error naming any table right after you run/re-run the setup
-SQL.) This means the table was created successfully, but Supabase's API
-layer (PostgREST) is still using a cached copy of the old schema and hasn't
-noticed the new table yet — it usually reloads within a few seconds, but
-not always instantly. Fix it by running this one line in the SQL Editor and
-clicking **Run**:
+**"Could not find the table 'public.calendar_events' in the schema cache"**
+or **"Could not find a relationship between 'tasks' and 'task_recurrences'
+in the schema cache"** (or a similar error naming any table/relationship
+right after you run/re-run the setup SQL). This means the table or foreign
+key was created successfully, but Supabase's API layer (PostgREST) is still
+using a cached copy of the old schema and hasn't noticed the change yet —
+it usually reloads within a few seconds, but not always instantly. Fix it
+by running this one line in the SQL Editor and clicking **Run**:
 
 ```sql
 notify pgrst, 'reload schema';
@@ -399,6 +400,35 @@ The employee's Calendar page opens on the **week** view by default (instead
 of month), since a week at a glance is usually more useful day-to-day. The
 admin's calendar still opens on month view. Either can switch views anytime
 using the month/week/day buttons at the top right of the calendar.
+
+On a phone-sized screen (roughly 640px wide or narrower — basically any
+phone), both the admin and employee calendars open on the **day** view
+instead, regardless of the above — a 7-column month or week grid squeezes
+each day into a sliver too narrow to actually read on a phone. Day view
+shows one day at a time, full width, with its tasks/appointments stacked
+down the hours of the day — scroll down to see later in the day, and use
+the Day/Week/Month buttons to switch manually anytime. This is decided once
+when the calendar loads, not re-decided every time you rotate the phone or
+resize a window, so it won't yank the view out from under you mid-use.
+
+## Installing it like an app (mobile)
+
+The site can be added to a phone's home screen and opens full-screen from
+there — no Safari address bar or toolbar, on every page, just like a
+regular app icon.
+
+**On iPhone/iPad (Safari):** open the site, tap the **Share** button (the
+square with an arrow pointing up), scroll down and tap **Add to Home
+Screen**, then tap **Add**. An icon appears on the home screen; tapping it
+opens the app full-screen.
+
+**On Android (Chrome):** open the site, tap the **⋮** menu, then **Add to
+Home screen** (or **Install app**, if Chrome offers it directly).
+
+Note this is intentionally a simple installable shortcut, not an offline
+app — it always loads the latest live version over the network rather than
+caching pages, so you'll never see a stale version stuck on a home screen
+icon after an update goes out.
 
 ## Appointments & deliveries
 
@@ -671,3 +701,13 @@ preserving completed ones as history.
       recurring task, and each only sees/manages their own series (the
       employee can't stop or edit a recurring task the admin created for
       them beyond the normal per-occurrence Mark Complete/Reopen).
+- [ ] On an iPhone, Safari's **Share → Add to Home Screen** adds an icon
+      with the app's actual logo (not a blank/generic icon); tapping it
+      opens the app full-screen with no address bar or Safari toolbar
+      visible on *any* page, including Calendar.
+- [ ] On a phone-width screen, the Calendar page opens showing a single day
+      (not a squeezed week/month grid), with today's tasks/appointments
+      readable at a glance; the Day/Week/Month buttons still let you switch
+      views manually.
+- [ ] On a normal desktop-width browser window, the calendar's default view
+      is unchanged from before (admin: month, employee: week).

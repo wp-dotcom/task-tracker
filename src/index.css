@@ -1347,6 +1347,27 @@ button {
     font-size: 0.82rem;
   }
 
+  /* Give the grid itself more breathing room on a narrower screen — the
+     outer card's padding matters less than the calendar's own content once
+     space is tight. */
+  .task-calendar {
+    padding: 10px;
+  }
+
+  .fc-task-event {
+    font-size: 0.85rem;
+    padding: 2px 4px;
+  }
+
+  .fc-task-time {
+    font-size: 0.78rem;
+  }
+
+  .fc .fc-daygrid-day-number,
+  .fc .fc-col-header-cell-cushion {
+    font-size: 0.85rem;
+  }
+
   .field-row {
     flex-direction: column;
     gap: 0;
@@ -1393,6 +1414,33 @@ button {
 
   .btn-lg {
     width: 100%;
+  }
+}
+
+/* Below this width the calendar defaults to a single day (see
+   MOBILE_BREAKPOINT_PX in TaskCalendar.tsx) — one big column instead of a
+   cramped grid, so it's worth being generous with text size here since
+   there's a full phone-width column to fill. */
+@media (max-width: 640px) {
+  .fc-task-event {
+    font-size: 0.92rem;
+    padding: 4px 6px;
+  }
+
+  .fc-task-title-line {
+    white-space: normal;
+  }
+
+  .fc-task-time {
+    font-size: 0.85rem;
+  }
+
+  .fc-task-desc-line {
+    font-size: 0.8rem;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 0.95rem;
   }
 }
 
