@@ -124,8 +124,16 @@ export default function TaskPhotos({ taskId }: { taskId: string }) {
       {preview && (
         <div className="modal-overlay" role="presentation" onClick={() => setPreview(null)}>
           <div className="task-photo-preview" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close-x"
+              aria-label="Close"
+              onClick={() => setPreview(null)}
+            >
+              ×
+            </button>
             <img src={taskPhotoUrl(preview.storage_path)} alt="Task attachment" />
-            <button type="button" className="btn btn-ghost" onClick={() => setPreview(null)}>
+            <button type="button" className="btn btn-secondary" onClick={() => setPreview(null)}>
               Close
             </button>
           </div>

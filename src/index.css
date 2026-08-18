@@ -296,7 +296,8 @@ button {
 
 .sidebar-brand {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.25;
   padding: 6px 10px 20px;
 }
 
@@ -929,6 +930,7 @@ button {
 }
 
 .modal-panel {
+  position: relative;
   background: var(--color-surface);
   border-radius: var(--radius);
   padding: 26px 26px 22px;
@@ -939,6 +941,42 @@ button {
 
 .confirm-dialog {
   max-width: 400px;
+}
+
+/* Reserve clearance under the close-X for whatever sits in the top-right of
+   the panel's first row (a title, or a title + badge) so neither ever runs
+   under the button. */
+.modal-panel > h2,
+.modal-panel > .task-details-header {
+  padding-right: 34px;
+}
+
+.modal-close-x {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close-x:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.modal-close-x:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modal-actions {
@@ -1013,8 +1051,17 @@ button {
 .task-details-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-top: 8px;
+}
+
+/* Close always reads as a distinct, clearly-bordered button rather than a
+   text link that happens to wrap onto its own line, and sits pinned to the
+   right of the row (or on its own full row on narrow screens) instead of
+   blending in with the task-specific actions to its left. */
+.task-details-close-btn {
+  margin-left: auto;
 }
 
 .task-details-activity {
@@ -1121,6 +1168,7 @@ button {
 }
 
 .task-photo-preview {
+  position: relative;
   max-width: min(92vw, 640px);
   max-height: 92vh;
   display: flex;
@@ -1245,6 +1293,23 @@ button {
 
 .calendar-error {
   margin-bottom: 12px;
+}
+
+/* Hovering a day (month view) or a time column (week/day view) highlights
+   it, as a visual cue that clicking there opens the add-task/appointment
+   form. Scoped to hover-capable, fine-pointer devices only (a real mouse)
+   so touchscreens — where the equivalent gesture is a tap, not a hover —
+   never get a highlight that "sticks" after a tap. */
+@media (hover: hover) and (pointer: fine) {
+  .fc .fc-daygrid-day:hover .fc-daygrid-day-frame {
+    background-color: var(--color-bg);
+    cursor: pointer;
+  }
+
+  .fc .fc-timegrid-col.fc-day:hover {
+    background-color: var(--color-bg);
+    cursor: pointer;
+  }
 }
 
 .fc-task-event {
@@ -2012,7 +2077,13 @@ button {
 
   .mobile-topbar-brand {
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    margin-right: 10px;
   }
 
   .mobile-menu-button {

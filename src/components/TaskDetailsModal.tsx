@@ -153,6 +153,10 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         aria-labelledby="task-details-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+
         <div className="task-details-header">
           <h2 id="task-details-title" className={task.status === 'completed' ? 'strike' : ''}>
             {task.title}
@@ -175,7 +179,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
           )}
           {recurrenceLabel && (
             <span className="task-details-recurrence">
-              🔁 {task.recurrence?.active ? `Repeats ${recurrenceLabel}` : 'Repeating series (stopped)'}
+              ↻ {task.recurrence?.active ? `Repeats ${recurrenceLabel}` : 'Repeating series (stopped)'}
             </span>
           )}
         </div>
@@ -223,7 +227,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         <div className="task-details-actions">
           {task.status === 'open' && (isAdmin || isOwner) && (
             <button type="button" className="btn btn-success btn-lg" onClick={handleComplete} disabled={busy}>
-              ✓ Mark Complete
+              Mark Complete
             </button>
           )}
           {task.status === 'completed' && (isAdmin || isOwner) && (
@@ -262,7 +266,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
               Stop repeating
             </button>
           )}
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <button type="button" className="btn btn-secondary task-details-close-btn" onClick={onClose}>
             Close
           </button>
         </div>

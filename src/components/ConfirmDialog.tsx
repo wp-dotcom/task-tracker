@@ -33,6 +33,16 @@ export default function ConfirmDialog({
         aria-labelledby="confirm-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          className="modal-close-x"
+          aria-label="Close"
+          onClick={onCancel}
+          disabled={busy}
+        >
+          ×
+        </button>
+
         <h2 id="confirm-title">{title}</h2>
         <p>{message}</p>
         <div className="modal-actions">

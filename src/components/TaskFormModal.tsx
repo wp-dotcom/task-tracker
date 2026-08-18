@@ -233,6 +233,10 @@ export default function TaskFormModal({
         aria-labelledby="task-form-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" className="modal-close-x" aria-label="Close" onClick={requestClose}>
+          ×
+        </button>
+
         <h2 id="task-form-title">
           {isEdit ? 'Edit task' : duplicateFrom ? 'Duplicate task' : isAdmin ? 'Add task' : 'Add my task'}
         </h2>

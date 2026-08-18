@@ -176,7 +176,7 @@ export default function TaskCard({
             onClick={handleSwipeComplete}
             tabIndex={revealed === 'left' ? 0 : -1}
           >
-            ✓ Complete
+            Complete
           </button>
           <button
             type="button"
@@ -209,10 +209,9 @@ export default function TaskCard({
         )}
         <div className="task-card-main">
           <span className={`task-card-title${completed ? ' strike' : ''}`}>
-            {completed && <span aria-hidden="true">✓ </span>}
             {task.recurrence_id && (
               <span aria-label="Repeating task" title="Repeating task">
-                🔁{' '}
+                ↻{' '}
               </span>
             )}
             {task.title}

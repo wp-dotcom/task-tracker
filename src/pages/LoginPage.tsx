@@ -38,7 +38,7 @@ export default function LoginPage() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <h1 className="auth-title">Task Tracker</h1>
+        <h1 className="auth-title">Mid Haven Furniture</h1>
         <p className="auth-subtitle">Sign in to continue</p>
 
         {expired && (

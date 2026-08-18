@@ -101,7 +101,7 @@ function renderTaskEventContent(arg: EventContentArg) {
         </span>
         {task.recurrence_id && (
           <span className="fc-task-repeat-icon" aria-label="Repeating task" title="Repeating task">
-            🔁
+            ↻
           </span>
         )}
         {task.title}

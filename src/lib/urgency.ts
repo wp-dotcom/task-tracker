@@ -17,7 +17,7 @@ export const URGENCY_LABELS: Record<TaskUrgency, { label: string; icon: string }
   low: { label: 'Low', icon: '○' },
   normal: { label: 'Normal', icon: '◐' },
   high: { label: 'High', icon: '●' },
-  urgent: { label: 'Urgent', icon: '❗' },
+  urgent: { label: 'Urgent', icon: '▲' },
 };
 
 export const DEFAULT_URGENCY_COLORS: Record<TaskUrgency, string> = {

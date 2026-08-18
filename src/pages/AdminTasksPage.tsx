@@ -247,7 +247,7 @@ export default function AdminTasksPage() {
               onClick={handleBulkComplete}
               disabled={bulkBusy}
             >
-              ✓ Complete
+              Complete
             </button>
             <select
               className="field-input bulk-action-reassign"

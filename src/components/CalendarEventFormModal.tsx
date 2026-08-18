@@ -105,6 +105,10 @@ export default function CalendarEventFormModal({
         aria-labelledby="calendar-event-form-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+
         <h2 id="calendar-event-form-title">{isEdit ? 'Edit' : 'Add'} appointment or delivery</h2>
 
         <form onSubmit={handleSubmit} className="task-form">

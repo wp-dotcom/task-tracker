@@ -61,6 +61,10 @@ export default function CalendarEventDetailsModal({ event, onClose }: CalendarEv
         aria-labelledby="calendar-event-details-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+
         <div className="task-details-header">
           <h2 id="calendar-event-details-title">
             <span aria-hidden="true">{meta.icon}</span> {event.title}
@@ -116,7 +120,7 @@ export default function CalendarEventDetailsModal({ event, onClose }: CalendarEv
               </button>
             </>
           )}
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <button type="button" className="btn btn-secondary task-details-close-btn" onClick={onClose}>
             Close
           </button>
         </div>

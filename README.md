@@ -1,4 +1,4 @@
-# Task Tracker
+# Mid Haven Furniture
 
 A simple, calendar-based task tracker for assigning work to an employee and
 verifying it was actually seen and done. Built with React, TypeScript, Vite,
@@ -407,7 +407,7 @@ An open task the employee hasn't opened yet is hard to miss, on purpose:
   there's at least one unviewed task.
 - A **badge with the count** next to "My Tasks" in the sidebar/mobile nav —
   visible from any page in the app, not just My Tasks itself.
-- The **browser tab title** changes to e.g. "(3) Task Tracker" so a new task
+- The **browser tab title** changes to e.g. "(3) Mid Haven Furniture" so a new task
   is noticeable even if the app isn't the active tab.
 
 That purple colour is intentionally outside the urgency palette
@@ -444,6 +444,22 @@ passes, even if you don't touch anything else in the app, so leaving the
 Calendar or My Tasks page open through the day is enough to catch it. (Like
 the unviewed-task pulse, this respects the OS-level "reduce motion"
 accessibility setting.)
+
+## Closing pop-ups
+
+Every pop-up (task details, appointment/delivery details, the Add/Edit
+forms, presets, confirmation prompts, and the photo viewer) can be closed
+three ways: the **×** in its top-right corner, a clearly-bordered **Close**
+(or **Cancel**) button, or by clicking/tapping anywhere outside it. All
+three do the same thing everywhere in the app.
+
+## Calendar day hover
+
+On a computer (anything with a mouse, not a touchscreen), hovering over a
+day in month view — or a day column in week/day view — highlights it, as a
+visual hint that clicking there opens the add-task/appointment form. This
+doesn't apply on phones/tablets, since there's no hover gesture to match
+there — tapping already does the same thing.
 
 ## Calendar starting view
 
@@ -518,7 +534,7 @@ shared calendar:
   now add both tasks and appointments/deliveries, clicking a day/time shows
   a small "Task" vs. "Appointment/Delivery" chooser first, so a single click
   still works even though there are two things it could mean.
-- Either way, pick a type (Appointment 🗓️ or Delivery 📦), give it a title,
+- Either way, pick a type (Appointment ◆ or Delivery ■), give it a title,
   optional notes, a date, and an optional time (same 8 AM–8 PM picker as
   tasks).
 - Everyone — every employee and the admin — sees every entry, in month,
@@ -582,7 +598,7 @@ you don't have to recreate the same task every day/week/month:
 - Every generated occurrence is a completely normal task: mark it
   **Complete**, **Reopen** it, **Edit** it, or **Delete** it, same as any
   other task, and it shows up in the calendar and My Tasks sections the
-  same way. A small 🔁 shows next to its title so it's clear at a glance
+  same way. A small ↻ shows next to its title so it's clear at a glance
   that it's part of a series.
 - To end a series, open any occurrence and click **Stop repeating**. That
   task stays as it is, but no more occurrences will be created, and any
@@ -796,7 +812,7 @@ never a second employee, even via a direct API call.
       opens it.
 - [ ] With at least one unviewed task, the employee sees a purple banner at
       the top of My Tasks, a numbered badge next to "My Tasks" in the nav,
-      and the browser tab title shows the count (e.g. "(2) Task Tracker").
+      and the browser tab title shows the count (e.g. "(2) Mid Haven Furniture").
       All three go away once every task has been opened.
 - [ ] On **My Tasks**, a task due later this week appears under "This Week"
       and a task due next week or later appears under "Future" — two
@@ -844,7 +860,7 @@ never a second employee, even via a direct API call.
       anywhere (not on their calendar, not via a direct link) — only the
       admin and the employee who added it can see it.
 - [ ] Adding a task with **Repeat: Daily** creates today's task immediately,
-      and it (or its 🔁 icon) is visible right away on the calendar and in
+      and it (or its ↻ icon) is visible right away on the calendar and in
       the task list.
 - [ ] The **Repeat** field only appears when adding a new task, not when
       editing an existing one.
@@ -856,7 +872,7 @@ never a second employee, even via a direct API call.
       date each month (and on the last day of shorter months, if you started
       on the 29th/30th/31st); **Every weekday** never lands on a Saturday or
       Sunday, even if you started the series on one.
-- [ ] Opening a repeating task shows "🔁 Repeats {frequency}" and a **Stop
+- [ ] Opening a repeating task shows "↻ Repeats {frequency}" and a **Stop
       repeating** button; opening a non-repeating task shows neither.
 - [ ] Clicking **Stop repeating** and confirming removes the other upcoming,
       not-yet-completed occurrences of that series from the calendar/task
@@ -957,3 +973,11 @@ never a second employee, even via a direct API call.
 - [ ] A second employee cannot see another employee's task notes/photos —
       confirm by checking that task's details as that second employee (or
       via a direct query) shows nothing.
+- [ ] The app is titled "Mid Haven Furniture" everywhere — the browser tab,
+      the sidebar/mobile top bar brand, the login page, and the home-screen
+      icon name after "Add to Home Screen."
+- [ ] Every pop-up shows a **×** in its top-right corner and a clearly
+      bordered Close/Cancel button; clicking either, or clicking/tapping
+      outside the pop-up, closes it.
+- [ ] On a computer, hovering over a day in month view (or a day column in
+      week/day view) highlights it; this has no effect on a touchscreen.

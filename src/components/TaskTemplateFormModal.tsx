@@ -76,6 +76,10 @@ export default function TaskTemplateFormModal({
         aria-labelledby="template-form-title"
         onClick={(e) => e.stopPropagation()}
       >
+        <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+
         <h2 id="template-form-title">{isEdit ? 'Edit preset' : 'New preset'}</h2>
 
         <form onSubmit={handleSubmit} className="task-form">

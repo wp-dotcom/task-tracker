@@ -4,25 +4,24 @@ import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import OfflineBanner from './OfflineBanner';
 
-const BASE_TITLE = 'Task Tracker';
+const BASE_TITLE = 'Mid Haven Furniture';
 
 interface NavItem {
   to: string;
   label: string;
-  icon: string;
 }
 
 const ADMIN_NAV: NavItem[] = [
-  { to: '/calendar', label: 'Calendar', icon: '📅' },
-  { to: '/tasks', label: 'Tasks', icon: '☰' },
-  { to: '/employees', label: 'Employees', icon: '👤' },
-  { to: '/templates', label: 'Templates', icon: '📋' },
-  { to: '/settings', label: 'Settings', icon: '⚙' },
+  { to: '/calendar', label: 'Calendar' },
+  { to: '/tasks', label: 'Tasks' },
+  { to: '/employees', label: 'Employees' },
+  { to: '/templates', label: 'Templates' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [
-  { to: '/my-tasks', label: 'My Tasks', icon: '☰' },
-  { to: '/calendar', label: 'Calendar', icon: '📅' },
+  { to: '/my-tasks', label: 'My Tasks' },
+  { to: '/calendar', label: 'Calendar' },
 ];
 
 export default function AppLayout() {
@@ -64,7 +63,7 @@ export default function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">Task Tracker</div>
+        <div className="sidebar-brand">Mid Haven Furniture</div>
         <nav className="sidebar-nav">
           {nav.map((item) => (
             <NavLink
@@ -72,9 +71,6 @@ export default function AppLayout() {
               to={item.to}
               className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
             >
-              <span className="sidebar-icon" aria-hidden="true">
-                {item.icon}
-              </span>
               {item.label}
               {item.to === '/my-tasks' && unviewedCount > 0 && (
                 <span className="nav-badge">
@@ -104,7 +100,7 @@ export default function AppLayout() {
       </main>
 
       <header className="mobile-topbar">
-        <span className="mobile-topbar-brand">Task Tracker</span>
+        <span className="mobile-topbar-brand">Mid Haven Furniture</span>
         <button
           type="button"
           className="mobile-menu-button"
@@ -139,9 +135,6 @@ export default function AppLayout() {
                 className={({ isActive }) => `mobile-menu-link${isActive ? ' active' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                <span className="mobile-menu-icon" aria-hidden="true">
-                  {item.icon}
-                </span>
                 {item.label}
                 {item.to === '/my-tasks' && unviewedCount > 0 && (
                   <span className="nav-badge">
@@ -168,7 +161,7 @@ export default function AppLayout() {
                 signOut();
               }}
             >
-              <span aria-hidden="true">⎋</span> Log out
+              Log out
             </button>
           </nav>
         </>
