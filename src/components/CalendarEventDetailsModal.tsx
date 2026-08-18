@@ -88,14 +88,14 @@ export default function CalendarEventDetailsModal({ event, onClose }: CalendarEv
         <dl className="task-details-grid">
           <div>
             <dt>Date</dt>
-            <dd>
+            <dd className="meta-value">
               {formatDueDate(event.event_date)}
-              {event.event_time ? ` at ${formatDueTime(event.event_time)}` : ''}
+              {event.event_time && <span className="meta-sub">{formatDueTime(event.event_time)}</span>}
             </dd>
           </div>
           <div>
             <dt>Added</dt>
-            <dd>{formatTimestamp(event.created_at)}</dd>
+            <dd className="meta-value">{formatTimestamp(event.created_at)}</dd>
           </div>
         </dl>
 

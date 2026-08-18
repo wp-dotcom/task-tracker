@@ -189,32 +189,47 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         <dl className="task-details-grid">
           <div>
             <dt>Due</dt>
-            <dd>
+            <dd className="meta-value">
               {formatDueDate(task.due_date)}
-              {task.due_time ? ` at ${formatDueTime(task.due_time)}` : ''}
+              {task.due_time && <span className="meta-sub">{formatDueTime(task.due_time)}</span>}
             </dd>
           </div>
           <div>
             <dt>Created</dt>
-            <dd>{formatTimestamp(task.created_at)}</dd>
+            <dd className="meta-value">{formatTimestamp(task.created_at)}</dd>
           </div>
           <div>
             <dt>Viewed</dt>
-            <dd>
-              {task.first_viewed_at
-                ? `Yes — ${formatTimestamp(task.first_viewed_at)}`
-                : 'Not viewed yet'}
+            <dd className={`meta-value${task.first_viewed_at ? ' meta-value-positive' : ' meta-value-muted'}`}>
+              {task.first_viewed_at ? (
+                <>
+                  <span className="meta-dot meta-dot-positive" aria-hidden="true" />
+                  Yes
+                  <span className="meta-sub">{formatTimestamp(task.first_viewed_at)}</span>
+                </>
+              ) : (
+                'Not viewed yet'
+              )}
             </dd>
           </div>
           {task.last_viewed_at && task.last_viewed_at !== task.first_viewed_at && (
             <div>
               <dt>Last viewed</dt>
-              <dd>{formatTimestamp(task.last_viewed_at)}</dd>
+              <dd className="meta-value">{formatTimestamp(task.last_viewed_at)}</dd>
             </div>
           )}
           <div>
             <dt>Completed</dt>
-            <dd>{task.completed_at ? formatTimestamp(task.completed_at) : 'Not completed'}</dd>
+            <dd className={`meta-value${task.completed_at ? ' meta-value-positive' : ' meta-value-muted'}`}>
+              {task.completed_at ? (
+                <>
+                  <span className="meta-dot meta-dot-positive" aria-hidden="true" />
+                  {formatTimestamp(task.completed_at)}
+                </>
+              ) : (
+                'Not completed'
+              )}
+            </dd>
           </div>
         </dl>
 
