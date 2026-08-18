@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Client-side routing: any path that isn't a real file falls back to
+# index.html so React Router can handle it (fixes 404s on refresh for
+# routes like /calendar, /tasks, /employees, /my-tasks).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

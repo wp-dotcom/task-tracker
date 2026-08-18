@@ -1,0 +1,362 @@
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import type {
+  Profile,
+  TaskRecurrenceFrequency,
+  TaskTemplate,
+  TaskUrgency,
+  TaskWithProfiles,
+} from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useTasks } from '../context/TasksContext';
+import { useEmployees } from '../hooks/useEmployees';
+import { useTaskTemplates } from '../hooks/useTaskTemplates';
+import { getErrorMessage } from '../lib/errors';
+import { todayLocalISODate } from '../lib/dates';
+import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
+import TaskTemplateFormModal from './TaskTemplateFormModal';
+import TimeSelect from './TimeSelect';
+
+interface TaskFormModalProps {
+  open: boolean;
+  onClose: () => void;
+  /** When set, the modal edits this task instead of creating a new one. */
+  task?: TaskWithProfiles | null;
+  /** Pre-fill the due date, e.g. when created from a calendar date click. */
+  defaultDate?: string;
+  /** Pre-fill the due time ("HH:MM"), e.g. when created from a week/day calendar time-slot click. */
+  defaultTime?: string;
+  onSaved?: (taskId: string) => void;
+}
+
+export default function TaskFormModal({
+  open,
+  onClose,
+  task = null,
+  defaultDate,
+  defaultTime,
+  onSaved,
+}: TaskFormModalProps) {
+  const { profile } = useAuth();
+  const { createTask, createTaskRecurrence, updateTask, markViewed } = useTasks();
+  const { employees, loading: employeesLoading } = useEmployees();
+  const { templates, refresh: refreshTemplates } = useTaskTemplates();
+
+  const isAdmin = profile?.role === 'admin';
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [dueTime, setDueTime] = useState('');
+  const [urgency, setUrgency] = useState<TaskUrgency>('normal');
+  const [repeat, setRepeat] = useState<TaskRecurrenceFrequency | 'none'>('none');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateFormOpen, setTemplateFormOpen] = useState(false);
+
+  const isEdit = Boolean(task);
+
+  useEffect(() => {
+    if (!open) return;
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description);
+      setAssignedTo(task.assigned_to);
+      setDueDate(task.due_date);
+      setDueTime(task.due_time ? task.due_time.slice(0, 5) : '');
+      setUrgency(task.urgency);
+    } else {
+      setTitle('');
+      setDescription('');
+      // Employees creating their own task are always the assignee; admins
+      // pick from the employee list below.
+      setAssignedTo(isAdmin ? '' : (profile?.id ?? ''));
+      setDueDate(defaultDate ?? todayLocalISODate());
+      setDueTime(defaultTime ?? '');
+      setUrgency('normal');
+      setRepeat('none');
+    }
+    setSelectedTemplateId('');
+    setError(null);
+  }, [open, task, defaultDate, defaultTime, isAdmin, profile]);
+
+  function applyTemplate(template: TaskTemplate) {
+    setTitle(template.title);
+    setDescription(template.description);
+    setUrgency(template.urgency);
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    setSelectedTemplateId(templateId);
+    const template = templates.find((t) => t.id === templateId);
+    if (template) applyTemplate(template);
+  }
+
+  function handleTemplateSaved(template: TaskTemplate) {
+    refreshTemplates();
+    setSelectedTemplateId(template.id);
+    applyTemplate(template);
+  }
+
+  // Default the assignee to the (only, in v1) employee once loaded — admins only;
+  // employees are always assigned to themselves (set above).
+  useEffect(() => {
+    if (open && isAdmin && !isEdit && !assignedTo && employees.length > 0) {
+      setAssignedTo(employees[0].id);
+    }
+  }, [open, isAdmin, isEdit, assignedTo, employees]);
+
+  if (!open) return null;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!title.trim()) {
+      setError('Please enter a task title.');
+      return;
+    }
+    if (!assignedTo) {
+      setError('Please choose who this task is assigned to.');
+      return;
+    }
+    if (!dueDate) {
+      setError('Please choose a due date.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (isEdit && task) {
+        await updateTask(task.id, {
+          title,
+          description,
+          assigned_to: assignedTo,
+          due_date: dueDate,
+          due_time: dueTime ? `${dueTime}:00` : null,
+          urgency,
+        });
+        onSaved?.(task.id);
+      } else {
+        const created =
+          repeat === 'none'
+            ? await createTask({
+                title,
+                description,
+                assigned_to: assignedTo,
+                due_date: dueDate,
+                due_time: dueTime ? `${dueTime}:00` : null,
+                urgency,
+              })
+            : await createTaskRecurrence({
+                title,
+                description,
+                assigned_to: assignedTo,
+                urgency,
+                frequency: repeat,
+                due_time: dueTime ? `${dueTime}:00` : null,
+                start_date: dueDate,
+              });
+        if (!isAdmin) {
+          // Employee just created and is viewing their own task — mark it
+          // viewed right away so it doesn't show a confusing "New" badge.
+          markViewed(created.id).catch(() => {});
+        }
+        onSaved?.(created.id);
+      }
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+    <div className="modal-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-form-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="task-form-title">
+          {isEdit ? 'Edit task' : isAdmin ? 'Add task' : 'Add my task'}
+        </h2>
+
+        {!isEdit && isAdmin && (
+          <div className="template-picker">
+            <div className="field-col" style={{ flex: 1 }}>
+              <label className="field-label" htmlFor="task-template" style={{ marginTop: 0 }}>
+                Start from a preset <span className="field-optional">(optional)</span>
+              </label>
+              <select
+                id="task-template"
+                className="field-input"
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+              >
+                <option value="">None — start blank</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setTemplateFormOpen(true)}
+              style={{ marginTop: 22 }}
+            >
+              + New preset
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="task-form">
+          <label className="field-label" htmlFor="task-title">
+            Title
+          </label>
+          <input
+            id="task-title"
+            className="field-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Move teak dresser"
+            required
+            autoFocus
+          />
+
+          <label className="field-label" htmlFor="task-description">
+            Instructions
+          </label>
+          <textarea
+            id="task-description"
+            className="field-input field-textarea"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={isAdmin ? 'Add any details the employee needs...' : 'Add any notes for yourself...'}
+            rows={4}
+          />
+
+          <div className="field-row">
+            {isAdmin && (
+              <div className="field-col">
+                <label className="field-label" htmlFor="task-assignee">
+                  Assigned to
+                </label>
+                <select
+                  id="task-assignee"
+                  className="field-input"
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    {employeesLoading ? 'Loading...' : 'Select employee'}
+                  </option>
+                  {employees.map((emp: Profile) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="field-col">
+              <label className="field-label" htmlFor="task-urgency">
+                Urgency
+              </label>
+              <select
+                id="task-urgency"
+                className="field-input"
+                value={urgency}
+                onChange={(e) => setUrgency(e.target.value as TaskUrgency)}
+              >
+                {URGENCY_ORDER.slice()
+                  .reverse()
+                  .map((u) => (
+                    <option key={u} value={u}>
+                      {URGENCY_META[u].label}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="field-row">
+            <div className="field-col">
+              <label className="field-label" htmlFor="task-due-date">
+                Due date
+              </label>
+              <input
+                id="task-due-date"
+                type="date"
+                className="field-input"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field-col">
+              <label className="field-label" htmlFor="task-due-time">
+                Due time <span className="field-optional">(optional)</span>
+              </label>
+              <TimeSelect id="task-due-time" value={dueTime} onChange={setDueTime} />
+            </div>
+          </div>
+
+          {!isEdit && (
+            <div className="field-row">
+              <div className="field-col">
+                <label className="field-label" htmlFor="task-repeat">
+                  Repeat <span className="field-optional">(optional)</span>
+                </label>
+                <select
+                  id="task-repeat"
+                  className="field-input"
+                  value={repeat}
+                  onChange={(e) => setRepeat(e.target.value as TaskRecurrenceFrequency | 'none')}
+                >
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekdays">Every weekday (Mon–Fri)</option>
+                  <option value="weekly">Weekly (same day)</option>
+                  <option value="monthly">Monthly (same date)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div role="alert" className="form-error">
+              {error}
+            </div>
+          )}
+
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <TaskTemplateFormModal
+      open={templateFormOpen}
+      onClose={() => setTemplateFormOpen(false)}
+      onSaved={handleTemplateSaved}
+    />
+    </>
+  );
+}
