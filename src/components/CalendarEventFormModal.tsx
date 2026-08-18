@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { CalendarEventType, CalendarEventWithCreator } from '../types';
 import { useCalendarEvents } from '../context/CalendarEventsContext';
@@ -37,8 +37,16 @@ export default function CalendarEventFormModal({
   const [eventTime, setEventTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const isEdit = Boolean(event);
+
+  // Focus the dialog panel itself (not the title field) so opening it
+  // doesn't pop the on-screen keyboard on phones/tablets — see the matching
+  // comment in TaskFormModal.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -100,10 +108,12 @@ export default function CalendarEventFormModal({
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
+        ref={panelRef}
         className="modal-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="calendar-event-form-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
@@ -136,7 +146,6 @@ export default function CalendarEventFormModal({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Plumber walkthrough"
             required
-            autoFocus
           />
 
           <label className="field-label" htmlFor="cal-event-description">

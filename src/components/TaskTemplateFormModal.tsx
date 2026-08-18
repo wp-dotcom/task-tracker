@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { TaskTemplate, TaskUrgency } from '../types';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
@@ -29,6 +29,7 @@ export default function TaskTemplateFormModal({
   const [urgency, setUrgency] = useState<TaskUrgency>('normal');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -37,6 +38,13 @@ export default function TaskTemplateFormModal({
     setUrgency(template?.urgency ?? 'normal');
     setError(null);
   }, [open, template]);
+
+  // Focus the dialog panel itself (not the title field) so opening it
+  // doesn't pop the on-screen keyboard on phones/tablets — see the matching
+  // comment in TaskFormModal.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
@@ -71,10 +79,12 @@ export default function TaskTemplateFormModal({
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
+        ref={panelRef}
         className="modal-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="template-form-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
@@ -94,7 +104,6 @@ export default function TaskTemplateFormModal({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Weekly inventory count"
             required
-            autoFocus
           />
 
           <label className="field-label" htmlFor="template-description">

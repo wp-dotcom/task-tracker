@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type {
   Profile,
@@ -67,6 +67,18 @@ export default function TaskFormModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [templateFormOpen, setTemplateFormOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Move focus into the dialog when it opens, but onto the panel itself
+  // rather than straight into the title field — autofocusing a text input
+  // pops the on-screen keyboard open immediately on phones/tablets, which
+  // covers half the form before anyone's asked to type anything. Desktop
+  // keyboard users still land inside the dialog (Tab reaches the fields
+  // right away); they just take one Tab press to reach the title field
+  // instead of arriving already inside it.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   const isEdit = Boolean(task);
   // In edit mode, "dirty" means changed from the task being edited. In
@@ -228,10 +240,12 @@ export default function TaskFormModal({
     <>
     <div className="modal-overlay" role="presentation" onClick={requestClose}>
       <div
+        ref={panelRef}
         className="modal-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-form-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="modal-close-x" aria-label="Close" onClick={requestClose}>
@@ -281,7 +295,6 @@ export default function TaskFormModal({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Move teak dresser"
             required
-            autoFocus
           />
 
           <label className="field-label" htmlFor="task-description">

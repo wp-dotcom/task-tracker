@@ -457,6 +457,15 @@ three ways: the **×** in its top-right corner, a clearly-bordered **Close**
 (or **Cancel**) button, or by clicking/tapping anywhere outside it. All
 three do the same thing everywhere in the app.
 
+## Opening a form doesn't pop the keyboard
+
+Opening **Add Task**, **Add my task**, **Add appointment or delivery**, or
+**New preset** moves focus into the pop-up so keyboard/screen-reader users
+land inside it right away, but it doesn't put the cursor directly into the
+Title field — that would trigger the on-screen keyboard the instant the form
+opens on a phone or tablet, before you've even seen what's on it. Tap the
+Title field (or Tab to it on a computer) when you're ready to type.
+
 ## Dropdowns
 
 Every dropdown in the app (urgency, assignee, repeat frequency, appointment
@@ -979,6 +988,9 @@ never a second employee, even via a direct API call.
 - [ ] Typing into the Add/Edit Task form, then clicking Close (or the
       overlay, or pressing Esc) prompts "Discard changes?"; closing an
       untouched form does not prompt.
+- [ ] On a phone, opening **Add Task**/**Add my task**/**Add appointment or
+      delivery**/**New preset** does not pop the on-screen keyboard — the
+      Title field shows its placeholder text, unfocused, until you tap it.
 - [ ] Clicking **Reset to defaults** on Settings prompts for confirmation
       before actually resetting the urgency colors.
 - [ ] Opening a task and clicking **Duplicate** opens the Add Task form

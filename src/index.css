@@ -1061,6 +1061,14 @@ button {
   box-shadow: var(--shadow-md);
 }
 
+/* The form modals focus the panel itself on open (see TaskFormModal, etc.)
+   instead of autofocusing a text field, so opening "Add task" doesn't pop
+   the on-screen keyboard on phones. That's a programmatic anchor point, not
+   a control anyone tabs to on purpose, so it doesn't need a focus ring. */
+.modal-panel:focus {
+  outline: none;
+}
+
 .confirm-dialog {
   max-width: 400px;
 }
