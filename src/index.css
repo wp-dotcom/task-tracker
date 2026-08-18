@@ -42,6 +42,60 @@
   --sidebar-width: 220px;
 }
 
+/* Dark theme — same token names, dark-appropriate values. Applied via a
+   data-theme="dark" attribute on <html>, set by the inline no-flash script
+   in index.html and kept in sync afterward by ThemeContext. Since every
+   surface/text/border color in this file is one of these variables (rather
+   than a one-off hex value), most of the app just falls out of this block
+   correctly; the handful of components with their own fixed pastel colors
+   (banners, active nav link) get their own dark overrides further down. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #14161b;
+  --color-surface: #1c1f26;
+  --color-border: #2e3239;
+  --color-text: #e7e9ec;
+  --color-text-muted: #9aa1ab;
+  --color-text-faint: #6f7580;
+  --color-primary: #5b8def;
+  --color-primary-hover: #7ea3f2;
+  --color-danger: #f16d7f;
+  --color-danger-bg: #3a1620;
+  --color-success: #4fbd6b;
+  --color-success-bg: #12301b;
+  --color-primary-bg: #1b2c4d;
+  --color-unviewed-accent: #b79bfa;
+  --color-unviewed-accent-bg: #2a2145;
+  --color-due-soon-accent: #f2b84b;
+  --color-due-soon-accent-bg: #3a2c0f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+  /* FullCalendar ships its own theme via these CSS custom properties, so
+     the calendar grid follows dark mode too instead of staying a bright
+     white box inside an otherwise dark app. */
+  --fc-page-bg-color: var(--color-surface);
+  --fc-neutral-bg-color: var(--color-bg);
+  --fc-neutral-text-color: var(--color-text-muted);
+  --fc-border-color: var(--color-border);
+  --fc-button-text-color: var(--color-text);
+  --fc-button-bg-color: var(--color-surface);
+  --fc-button-border-color: var(--color-border);
+  --fc-button-hover-bg-color: var(--color-bg);
+  --fc-button-hover-border-color: var(--color-border);
+  --fc-button-active-bg-color: var(--color-primary);
+  --fc-button-active-border-color: var(--color-primary);
+  --fc-today-bg-color: rgba(91, 141, 239, 0.15);
+  --fc-highlight-color: rgba(91, 141, 239, 0.2);
+  --fc-now-indicator-color: var(--color-danger);
+  --fc-more-link-bg-color: var(--color-bg);
+  --fc-more-link-text-color: var(--color-text);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -216,6 +270,32 @@ button {
   font-size: 0.8rem;
   color: var(--color-text-faint);
   text-align: center;
+}
+
+.auth-password-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.auth-password-label-row .field-label {
+  margin-top: 0;
+}
+
+.auth-forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
 }
 
 /* =============================================================================
@@ -442,7 +522,7 @@ button {
 }
 
 .sidebar-link.active {
-  background: #eaf0fe;
+  background: var(--color-primary-bg);
   color: var(--color-primary);
 }
 
@@ -523,6 +603,27 @@ button {
   border-top: 1px solid var(--color-border);
   padding-top: 14px;
   margin-top: 14px;
+}
+
+.sidebar-theme {
+  padding: 0 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar-theme-label {
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  flex-shrink: 0;
+}
+
+.sidebar-theme .dropdown-trigger {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4em 0.6em;
+  font-size: 0.82rem;
 }
 
 .sidebar-user {
@@ -614,6 +715,48 @@ button {
   border-radius: var(--radius-sm);
   overflow-x: auto;
   font-size: 0.85rem;
+}
+
+.feed-url-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.feed-url {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.feed-instructions {
+  margin-top: 14px;
+  font-size: 0.88rem;
+}
+
+.feed-instructions summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.feed-instructions p {
+  margin: 10px 0 0;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .feed-url-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feed-url {
+    white-space: normal;
+    word-break: break-all;
+  }
 }
 
 /* =============================================================================
@@ -2031,9 +2174,9 @@ button {
    Offline / session banners
    ============================================================================= */
 .offline-banner {
-  background: #fff4e5;
-  color: #8a5a00;
-  border: 1px solid #f0d9a8;
+  background: var(--color-due-soon-accent-bg);
+  color: var(--color-due-soon-accent);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-size: 0.85rem;
@@ -2164,8 +2307,8 @@ button {
   align-items: center;
   gap: 10px;
   background: var(--color-unviewed-accent-bg);
-  color: #4c1d95;
-  border: 1px solid #d8bffb;
+  color: var(--color-unviewed-accent);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 12px 16px;
   font-size: 0.92rem;
@@ -2184,9 +2327,9 @@ button {
 }
 
 .session-banner {
-  background: #e8f0fe;
+  background: var(--color-primary-bg);
   color: var(--color-primary);
-  border: 1px solid #c7dafc;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-size: 0.85rem;
@@ -2333,6 +2476,21 @@ button {
     height: 1px;
     background: var(--color-border);
     margin: 6px 4px;
+  }
+
+  .mobile-menu-theme {
+    padding: 4px 10px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mobile-menu-theme .dropdown-trigger {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4em 0.6em;
+    font-size: 0.82rem;
   }
 
   .mobile-menu-user {

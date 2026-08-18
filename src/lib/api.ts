@@ -7,6 +7,7 @@ import type {
   CreateTaskRecurrenceInput,
   CreateTaskTemplateInput,
   Profile,
+  PushSubscriptionRecord,
   Task,
   TaskComment,
   TaskEvent,
@@ -449,4 +450,53 @@ export async function deleteTaskPhoto(photoId: string, storagePath: string): Pro
   // Best-effort — the metadata row (the thing RLS/the UI actually cares
   // about) is already gone even if this second cleanup step fails.
   await supabase.storage.from(TASK_PHOTOS_BUCKET).remove([storagePath]).catch(() => {});
+}
+
+// -----------------------------------------------------------------------------
+// Calendar subscribe feed
+// -----------------------------------------------------------------------------
+
+export async function fetchMyFeedToken(userId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('feed_token')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return (data as { feed_token: string }).feed_token;
+}
+
+/** Regenerates the caller's own feed token (e.g. if the link was shared/leaked) and returns the new one. */
+export async function regenerateMyFeedToken(): Promise<string> {
+  const { data, error } = await supabase.rpc('regenerate_my_feed_token');
+  if (error) throw error;
+  return data as string;
+}
+
+// -----------------------------------------------------------------------------
+// Push notifications
+// -----------------------------------------------------------------------------
+
+export async function fetchMyPushSubscriptions(userId: string): Promise<PushSubscriptionRecord[]> {
+  const { data, error } = await supabase.from('push_subscriptions').select('*').eq('user_id', userId);
+  if (error) throw error;
+  return (data ?? []) as PushSubscriptionRecord[];
+}
+
+export async function savePushSubscription(
+  userId: string,
+  subscription: { endpoint: string; p256dh: string; auth: string },
+): Promise<void> {
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert(
+      { user_id: userId, endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
+      { onConflict: 'endpoint' },
+    );
+  if (error) throw error;
+}
+
+export async function deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
 }

@@ -12,9 +12,12 @@ from a list instead of retyping it), admin-**customizable urgency colors**
 (both under the admin's **Templates** and **Settings** nav items), a
 shared **appointments/deliveries calendar** any employee or admin can add
 to directly, **due-soon flashing** so nothing slips through at the last
-minute, per-task **photos and notes**, and a set of quality-of-life
-touches — toast confirmations, bulk task actions, swipe-to-complete/delete
-on mobile, task duplication, and search/filters throughout.
+minute, per-task **photos and notes**, a **light/dark theme** toggle,
+**push notifications** for assigned/due-soon/overdue tasks, a **read-only
+calendar subscribe feed** for Apple/Google/Outlook Calendar, self-service
+**password reset**, and a set of quality-of-life touches — toast
+confirmations, bulk task actions, swipe-to-complete/delete on mobile, task
+duplication, and search/filters throughout.
 
 ---
 
@@ -74,6 +77,16 @@ again, exactly like step 3 above. This is safe and won't touch any
 existing data. If the app still can't find `task_comments`/`task_photos`
 right after running it, see the schema-cache troubleshooting entry below.
 
+**Updating from a version before dark mode/push/calendar sync/password
+reset?** The current `schema.sql` also adds a `feed_token` column on
+`profiles` (calendar sync), a `push_subscriptions` table and a
+`task_push_log` table (push notifications), and a couple of small helper
+functions/triggers for both. Same deal — paste the whole file in and run it
+again. The dark mode, "Forgot password?", and calendar-sync-link UI all work
+immediately after that; **push notifications additionally need one Edge
+Function deployed** before they'll actually deliver anything — see "Setting
+up push notifications" below.
+
 ---
 
 ## 4. Authentication setup
@@ -89,6 +102,13 @@ all this app uses.
    **Authentication → Providers → Email** and disable "Allow new users to
    sign up". This isn't strictly required (the app has no sign-up UI to
    begin with), but it closes off direct API sign-up as an extra safety net.
+3. For the **"Forgot password?"** link on the login page to work, go to
+   **Authentication → URL Configuration** and add your site's reset-password
+   page to **Redirect URLs** — e.g. `https://your-site.netlify.app/reset-password`
+   for production, and `http://localhost:5173/reset-password` too if you
+   want it to work while running locally (`npm run dev`). Without this,
+   Supabase rejects the redirect and the emailed link won't land anywhere
+   useful.
 
 ---
 
@@ -151,6 +171,10 @@ newer dashboards):
 
 Do **not** use the `service_role` key anywhere in this project — it must
 never be shipped to a browser.
+
+A third, optional value — `VITE_VAPID_PUBLIC_KEY` — is only needed if you
+set up push notifications; see step 15 further down. Skip it for now if
+you're not there yet.
 
 ### Local `.env`
 
@@ -229,6 +253,8 @@ npm run lint      # runs oxlint over src/
 4. Before deploying, add the two environment variables from step 7 (there's
    an "Add environment variables" section right on this screen, or you can
    add them afterward under **Site configuration → Environment variables**).
+   Add the third, optional one from step 15 too if you've already set up
+   push notifications — otherwise it's fine to add it later and redeploy.
 5. Click **Deploy site**.
 6. Once the deploy finishes, open the site URL and log in.
 
@@ -310,6 +336,35 @@ Confirm in **Database → Replication** in the Supabase dashboard that the
 adds it automatically, but it's worth checking if you've made manual
 changes).
 
+**Clicking "Forgot password?" doesn't send an email, or the link goes nowhere.**
+Confirm you completed step 4.3 (adding `/reset-password` to **Authentication
+→ URL Configuration → Redirect URLs**) with the *exact* URL you're testing
+from (including `http://localhost:5173` if testing locally — it needs its
+own entry, separate from the production one). Also check spam, and that the
+email address you typed actually matches an existing account — the app
+deliberately shows the same "if an account exists..." message either way,
+so a mistyped email won't visibly fail.
+
+**Calendar app shows no events / "could not subscribe" on the calendar link.**
+Confirm you deployed the Edge Function in step 14
+(`supabase functions deploy calendar-feed --no-verify-jwt`) — visiting the
+link directly in a browser should download/display a `.ics` file rather
+than showing an error page. If it 404s, the function isn't deployed yet; if
+it 400/401s, double check `--no-verify-jwt` was included when deploying.
+
+**Push notifications never arrive.**
+Walk through step 15 in order — the most common misses are: the Edge
+Function deployed without `--no-verify-jwt`, the VAPID keys/`CRON_SECRET`
+not set as *function* secrets (`supabase secrets set`, not the `.env` file),
+`pg_cron`/`pg_net` not actually enabled (check **Database → Extensions**),
+or on iPhone/iPad, testing from a plain Safari tab instead of the
+Home-Screen-installed app (Apple requires the install — see the note at the
+end of step 15). You can sanity-check the function itself independent of
+the schedule with the `curl` command at the end of step 15 — if that
+delivers a notification, the function/keys are fine and the issue is in the
+`cron.schedule(...)` call (double-check the URL and `x-cron-secret` value
+match exactly).
+
 ---
 
 ## 12. Adding another employee later
@@ -322,20 +377,166 @@ changes).
 
 ---
 
+## 13. Edge Functions setup (needed for push notifications and/or calendar sync)
+
+Both of the next two sections need one small piece of server-side code
+running on Supabase's side — something that can't be done from inside the
+SQL editor, so it needs the Supabase CLI. If you don't want either feature
+yet, skip straight to "Project structure" below; everything else in the app
+works fine without it.
+
+1. Install the CLI (needs Node, which you already have from step 1):
+   ```bash
+   npm install -g supabase
+   ```
+2. From the project folder, log in and link it to your project (find your
+   project ref in the Supabase dashboard URL, `https://supabase.com/dashboard/project/<this-part>`):
+   ```bash
+   supabase login
+   supabase link --project-ref your-project-ref
+   ```
+
+Keep this terminal open — both sections below deploy from here.
+
+---
+
+## 14. Calendar sync (optional)
+
+Deploy the one Edge Function this needs:
+
+```bash
+supabase functions deploy calendar-feed --no-verify-jwt
+```
+
+(`--no-verify-jwt` is required here — calendar apps subscribing by URL can't
+send an Authorization header, so the function has to be reachable without
+one. It's still not guessable/public in a meaningful sense: it only returns
+anything for a valid `?token=...`, and that token is a random UUID unique to
+each person.)
+
+That's it — no secrets, no scheduling. In the app, every user (admin or
+employee) now has a **Notifications** page in the nav with a **Calendar
+sync** section showing their personal subscribe link and instructions for
+Apple Calendar, Google Calendar, and Outlook. If someone's link ever leaks,
+they can regenerate it from that same page — the old link stops working
+immediately.
+
+---
+
+## 15. Push notifications (optional)
+
+This one needs a few more pieces: a keypair so only your server can send
+notifications claiming to be your app (VAPID), and a scheduled job that
+periodically checks for tasks that just became assigned/due-soon/overdue.
+
+1. Generate a VAPID keypair (needs Node):
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+   This prints a **Public Key** and a **Private Key**. Keep this output
+   around for the next two steps.
+
+2. Deploy the scheduled-check function:
+   ```bash
+   supabase functions deploy check-due-tasks --no-verify-jwt
+   ```
+   (`--no-verify-jwt` again, for the same reason — pg_cron, below, can't
+   send an Authorization header either. `CRON_SECRET`, set next, is what
+   actually keeps this one from being triggered by a stranger.)
+
+3. Set the function's secrets (paste in your own values — `CRON_SECRET` can
+   be any random string you make up, e.g. run
+   `node -e "console.log(crypto.randomUUID())"` for one):
+   ```bash
+   supabase secrets set \
+     VAPID_PUBLIC_KEY=your-public-key-from-step-1 \
+     VAPID_PRIVATE_KEY=your-private-key-from-step-1 \
+     VAPID_SUBJECT=mailto:you@example.com \
+     BUSINESS_TIMEZONE=America/Chicago \
+     CRON_SECRET=some-random-string-you-make-up
+   ```
+   `BUSINESS_TIMEZONE` is any [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
+   (e.g. `America/New_York`, `America/Chicago`, `America/Los_Angeles`) — the
+   rest of the app treats every due date/time as "local to whoever's
+   looking at it" (see the comment at the top of `src/lib/dates.ts`), but a
+   scheduled job checking due dates in the middle of the night has no
+   "whoever's looking" to borrow a timezone from, so it needs one explicit
+   value for your shop.
+
+4. Add the **public** key only to your frontend env vars — this one's safe
+   to expose in browser code, unlike the private key above:
+   - Local `.env`: `VITE_VAPID_PUBLIC_KEY=your-public-key-from-step-1`
+   - Netlify: **Site configuration → Environment variables**, add
+     `VITE_VAPID_PUBLIC_KEY` with the same value, then trigger a new deploy
+     (env vars are baked in at build time).
+
+5. Enable two Postgres extensions the scheduled check relies on. `schema.sql`
+   already tries to enable `pg_net` for you; if that failed silently (some
+   projects restrict it from the SQL editor) or you still need `pg_cron`, go
+   to **Database → Extensions** in the Supabase dashboard and enable both
+   `pg_net` and `pg_cron` there instead.
+
+6. Schedule the periodic check — in **SQL Editor → New query**, filling in
+   your project ref and the same `CRON_SECRET` from step 3:
+   ```sql
+   select cron.schedule(
+     'check-due-tasks-push',
+     '*/5 * * * *',
+     $$
+     select net.http_post(
+       url := 'https://your-project-ref.supabase.co/functions/v1/check-due-tasks',
+       headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', 'some-random-string-you-make-up'),
+       body := '{}'::jsonb
+     );
+     $$
+   );
+   ```
+   This runs every 5 minutes. To change the frequency later, re-run
+   `select cron.unschedule('check-due-tasks-push');` followed by the
+   `cron.schedule(...)` call again with a different `'*/5 * * * *'`.
+
+7. Test it: open the app's **Notifications** page and click **Enable
+   notifications on this device**, allow the browser permission prompt, then
+   either wait up to 5 minutes for the next scheduled run or trigger one
+   immediately from a terminal:
+   ```bash
+   curl -X POST https://your-project-ref.supabase.co/functions/v1/check-due-tasks \
+     -H "x-cron-secret: some-random-string-you-make-up"
+   ```
+   You should get a notification for any task assigned to you (every task
+   gets exactly one "assigned" push the first time this function ever sees
+   it — so your very first run will likely notify you about every existing
+   open task at once; that's expected and only happens the once).
+
+**iPhone/iPad note:** Safari only supports push notifications for a site
+that's been **added to the Home Screen** first (Share → Add to Home Screen —
+see "Installing it like an app" above) — a regular Safari tab can't receive
+them, that's an Apple restriction, not something this app can work around.
+Desktop browsers and Android Chrome support it directly in a normal tab, no
+install required.
+
+---
+
 ## Project structure
 
 ```
 src/
   components/   Reusable UI: calendar, modals, cards, badges, layout, skeletons, offline banner, toasts,
-                task notes, task photos
-  pages/        One component per route (calendar, tasks, employees, templates, settings, my-tasks, login)
-  context/      React context: auth session/profile, shared tasks state + realtime, urgency colors, toasts
+                task notes, task photos, theme toggle
+  pages/        One component per route (calendar, tasks, employees, templates, settings, my-tasks, login,
+                reset-password, notifications)
+  context/      React context: auth session/profile, shared tasks state + realtime, urgency colors, toasts,
+                light/dark theme
   hooks/        Small data-fetching hooks (employees, task presets, task activity log, online status,
-                task comments, task photos)
-  lib/          Supabase client, all Supabase queries/RPC calls, date/urgency helpers, error messages
-  types/        Shared TypeScript types (Profile, Task, TaskEvent, TaskTemplate, enums)
+                task comments, task photos, push notification status, calendar feed link)
+  lib/          Supabase client, all Supabase queries/RPC calls, date/urgency helpers, error messages,
+                Web Push helpers
+  types/        Shared TypeScript types (Profile, Task, TaskEvent, TaskTemplate, PushSubscriptionRecord, enums)
 supabase/
   schema.sql    Everything you paste into the Supabase SQL editor
+  functions/    Edge Functions (see steps 14-15): calendar-feed (.ics feed), check-due-tasks (scheduled push)
+public/
+  sw.js         Service worker — only handles push notifications, no offline caching
 netlify.toml    Netlify build + SPA redirect configuration
 public/_redirects
 .env.example
@@ -484,6 +685,16 @@ day in month view — or a day column in week/day view — highlights it, as a
 visual hint that clicking there opens the add-task/appointment form. This
 doesn't apply on phones/tablets, since there's no hover gesture to match
 there — tapping already does the same thing.
+
+## Dark mode
+
+Every user picks their own theme independently — **Light**, **Dark**, or
+**Match system** — from the dropdown in the sidebar (desktop) or the ☰ menu
+(mobile), below the nav links. **Match system** follows your OS/browser's
+own light/dark setting automatically, including switching live if it
+changes (e.g. an OS-level auto-dark-at-sunset schedule) without needing a
+page reload. The choice is remembered per-browser and applies instantly,
+with no flash of the wrong theme on reload.
 
 ## Calendar starting view
 
@@ -725,6 +936,27 @@ fast (a plain `<img>` tag, no extra sign-in-protected link-generation
 step) — if that's ever a concern for a particularly sensitive photo, don't
 attach it here.
 
+## Notifications page
+
+Every user (admin or employee) has a **Notifications** page in the nav with
+two independent sections:
+
+- **Push notifications** — a per-device toggle. Once enabled, this browser
+  gets a real OS-level notification when a task is assigned to you, coming
+  due within the next 2 hours (matching the same due-soon window used for
+  in-app flashing), or overdue — even when the app isn't open. Requires the
+  one-time setup in "Setting up push notifications" above; until that's
+  done, this section just explains that push isn't configured yet rather
+  than showing a broken toggle.
+- **Calendar sync** — a personal, private link for subscribing to your
+  tasks and all shared appointments/deliveries from Apple Calendar, Google
+  Calendar, or Outlook (instructions for each are right there on the page).
+  It's read-only and refreshes every hour or so on the calendar app's own
+  schedule — completing a task in your calendar app doesn't mark it
+  complete here. The link can be regenerated anytime, e.g. if you ever
+  shared it somewhere you shouldn't have; the old one stops working the
+  moment you do.
+
 ## How the security model works (short version)
 
 - Every table has Row Level Security **enabled**, and access is granted only
@@ -788,6 +1020,23 @@ attach it here.
   from the upload path (`<task_id>/<random>.<ext>`) and apply the exact
   same `can_access_task()` check, so Storage-level access matches the
   database-level access rather than being a separate, looser gate.
+- `push_subscriptions` (Web Push registrations) has one `FOR ALL` policy
+  scoped to `user_id = auth.uid()` — you can only ever see/add/remove your
+  own device registrations, and there's deliberately no admin carve-out;
+  the only thing that ever reads this table for sending is the
+  `check-due-tasks` Edge Function's `service_role` key, which bypasses RLS
+  entirely and isn't reachable from any client role. `task_push_log` (which
+  prevents duplicate pushes) has RLS enabled with **zero** policies, which
+  denies every client-side request by default — only that same Edge
+  Function ever touches it.
+- `profiles.feed_token` (the calendar-subscribe link) follows the same
+  trust model as the `task-photos` Storage bucket above: not secret in the
+  cryptographic sense, just an unguessable random value, readable only by
+  its own owner or an admin (the existing `profiles_select` policy — no new
+  policy needed), and only ever regenerable via the narrow
+  `regenerate_my_feed_token()` function rather than a general self-update
+  grant on `profiles` (employees still can't rename themselves or change
+  their own role through it).
 
 This has been tested directly against Postgres with RLS enabled (not just
 through the app) — including confirming that an employee's direct
@@ -1053,3 +1302,28 @@ never a second employee, even via a direct API call.
 - [ ] Tapping "Mid Haven Furniture" (top-left of the sidebar on desktop, or
       the mobile top bar) takes the admin to Tasks and an employee to My
       Tasks.
+- [ ] The Theme dropdown (sidebar footer / mobile menu) switches instantly
+      between Light and Dark, no reload needed; picking "Match system" then
+      changing your OS/browser's own light/dark setting flips the app to
+      match without a reload either.
+- [ ] Reloading the app in Dark keeps it dark immediately — no flash of a
+      light screen first.
+- [ ] On the login page, "Forgot password?" switches to an email form;
+      submitting it always shows the same "if an account exists..." message
+      (whether or not that email is real), and a valid account receives an
+      actual reset email.
+- [ ] Clicking the emailed reset link lands on a "set a new password" page;
+      saving a new password signs you into the app, and you can immediately
+      log out and back in with the new password. Revisiting an
+      already-used or expired reset link shows an "isn't valid" message
+      instead of a form.
+- [ ] Both roles see a **Notifications** page in the nav.
+- [ ] On the Notifications page, the **Calendar sync** link opens/downloads
+      a valid `.ics` file when visited directly; subscribing to it from a
+      calendar app shows your open tasks and every appointment/delivery,
+      refreshing on its own over time. Clicking **Regenerate link** changes
+      the link and immediately invalidates the old one.
+- [ ] With push notifications set up (step 15) and enabled on a device,
+      assigning a task to that person, a task nearing its due time, and a
+      task going overdue each produce exactly one notification — not one
+      per scheduled check — and tapping a notification opens the app.

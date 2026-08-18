@@ -13,6 +13,10 @@ interface AuthContextValue {
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Emails a reset link to this address (via Supabase Auth) — doesn't reveal whether the account exists. */
+  sendPasswordReset: (email: string) => Promise<void>;
+  /** Sets a new password for the currently-active (recovery) session. */
+  updatePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -104,9 +108,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (resetError) {
+      throw new Error(getErrorMessage(resetError));
+    }
+  }, []);
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) {
+      throw new Error(getErrorMessage(updateError));
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ session, profile, loading, error, signIn, signOut }),
-    [session, profile, loading, error, signIn, signOut],
+    () => ({ session, profile, loading, error, signIn, signOut, sendPasswordReset, updatePassword }),
+    [session, profile, loading, error, signIn, signOut, sendPasswordReset, updatePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

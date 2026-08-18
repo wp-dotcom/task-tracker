@@ -26,6 +26,9 @@
 --  17. task_recurrences table (repeating tasks) + generation/stop RPCs + RLS
 --  18. task_comments table (two-way notes on a task) + RLS
 --  19. task_photos table + Storage bucket/policies (photo attachments) + RLS
+--  20. Calendar subscribe feed: profiles.feed_token + regenerate_my_feed_token()
+--  21. push_subscriptions table (Web Push registrations) + RLS
+--  22. task_push_log table + pg_net/pg_cron wiring for scheduled push checks
 -- =============================================================================
 
 
@@ -1204,6 +1207,147 @@ create policy task_photos_storage_delete on storage.objects
   to authenticated
   using (bucket_id = 'task-photos' and (owner = auth.uid() or public.is_admin()));
 
+
+-- -----------------------------------------------------------------------------
+-- 20. Calendar subscribe feed — profiles.feed_token + regenerate_my_feed_token()
+-- -----------------------------------------------------------------------------
+-- Each user gets a random, effectively-unguessable token that identifies
+-- them to the calendar-feed Edge Function without needing an Authorization
+-- header — calendar apps (Apple/Google/Outlook Calendar's "subscribe by
+-- URL") can't send custom headers, so the token has to live in the URL
+-- itself. Same trust model as the task-photos Storage bucket above: not
+-- secret in the cryptographic sense, just unguessable, and only ever
+-- readable by its own owner (or an admin) via RLS below.
+alter table public.profiles add column if not exists feed_token uuid not null default gen_random_uuid();
+
+create unique index if not exists profiles_feed_token_idx on public.profiles (feed_token);
+
+-- No new SELECT policy needed — feed_token is just another column on
+-- profiles, already covered by profiles_select (own row, or admin sees
+-- every row) from section 10 above.
+
+-- Employees have no general UPDATE policy on their own profile row (see
+-- profiles_update_admin's comment in section 10 — only admins rename
+-- people, change roles, etc.), so regenerating a leaked/shared feed link
+-- needs its own narrow RPC rather than a blanket self-update grant.
+create or replace function public.regenerate_my_feed_token()
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_new_token uuid := gen_random_uuid();
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  update public.profiles set feed_token = v_new_token where id = auth.uid();
+
+  return v_new_token;
+end;
+$$;
+
+revoke all on function public.regenerate_my_feed_token() from public;
+grant execute on function public.regenerate_my_feed_token() to authenticated;
+
+
+-- -----------------------------------------------------------------------------
+-- 21. push_subscriptions — Web Push registrations
+-- -----------------------------------------------------------------------------
+-- One row per browser/device that has enabled push notifications. The
+-- endpoint/p256dh/auth trio is exactly what the browser's Push API hands
+-- back from `registration.pushManager.subscribe()` — opaque to us, just
+-- passed to the web-push library in the check-due-tasks Edge Function.
+create table if not exists public.push_subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  endpoint   text not null unique,
+  p256dh     text not null,
+  auth       text not null,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.push_subscriptions is 'Web Push subscriptions (one per enabled browser/device). Written directly by the client for its own user_id; only ever read by the check-due-tasks Edge Function (service role, bypasses RLS).';
+
+create index if not exists push_subscriptions_user_id_idx on public.push_subscriptions (user_id);
+
+alter table public.push_subscriptions enable row level security;
+
+-- A user manages only their own subscriptions — enable/disable notifications
+-- on their own device. Admin gets no special access here on purpose: there's
+-- nothing useful an admin does with someone else's raw push endpoint, and
+-- keeping this table admin-blind too limits what a compromised admin
+-- session could do (send push to a random endpoint isn't among the RPCs
+-- exposed to any client role — only the Edge Function's service role can).
+drop policy if exists push_subscriptions_own on public.push_subscriptions;
+create policy push_subscriptions_own on public.push_subscriptions
+  for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+grant select, insert, update, delete on public.push_subscriptions to authenticated;
+
+
+-- -----------------------------------------------------------------------------
+-- 22. task_push_log + pg_net (scheduled push notifications)
+-- -----------------------------------------------------------------------------
+-- Tracks which (task, kind) push notifications have already been sent, so
+-- the periodic check-due-tasks Edge Function (invoked on a schedule via
+-- pg_cron — see README "Setting up push notifications") never re-sends the
+-- same "assigned"/"due soon"/"overdue" push for the same task twice. Only
+-- the Edge Function's service-role key ever touches this table, so it has
+-- no client-facing policies at all — RLS is enabled with zero policies,
+-- which denies every request from the anon/authenticated roles by default.
+create table if not exists public.task_push_log (
+  task_id uuid not null references public.tasks (id) on delete cascade,
+  kind    text not null check (kind in ('assigned', 'due_soon', 'overdue')),
+  sent_at timestamptz not null default now(),
+  primary key (task_id, kind)
+);
+
+comment on table public.task_push_log is 'One row per (task, notification kind) already pushed — prevents duplicate push notifications across repeated scheduled checks. Service-role only.';
+
+alter table public.task_push_log enable row level security;
+
+-- Reassigning a task (changing who it's assigned to) should be treated as a
+-- fresh "assigned" notification for the new assignee, not silently
+-- suppressed because *someone* was already notified about this task id.
+create or replace function public.clear_assigned_push_log()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.task_push_log where task_id = new.id and kind = 'assigned';
+  return new;
+end;
+$$;
+
+drop trigger if exists tasks_clear_assigned_push_log on public.tasks;
+create trigger tasks_clear_assigned_push_log
+  before update of assigned_to on public.tasks
+  for each row
+  when (old.assigned_to is distinct from new.assigned_to)
+  execute function public.clear_assigned_push_log();
+
+-- pg_net lets Postgres make outbound HTTP calls — pg_cron (scheduled below,
+-- via a separate statement you run after deploying the Edge Function; see
+-- README) uses it to invoke check-due-tasks on a timer. If this fails with
+-- a permissions error, enable it instead via Dashboard > Database >
+-- Extensions > search "pg_net" > Enable, then re-run just this file again.
+do $$
+begin
+  create extension if not exists pg_net;
+exception when others then
+  raise notice 'Could not enable pg_net here — enable it via Dashboard > Database > Extensions instead.';
+end
+$$;
+
+
 -- =============================================================================
 -- Done. Next steps (see README.md):
 --   1. Authentication > Providers: confirm Email is enabled, disable "Allow
@@ -1212,4 +1356,10 @@ create policy task_photos_storage_delete on storage.objects
 --   2. Authentication > Users > Add user to create your admin and employee
 --      accounts (use "User Metadata" to set full_name/role — see README).
 --   3. Copy your Project URL and anon public key into .env / Netlify env vars.
+--   4. Authentication > URL Configuration: add <your-site>/reset-password to
+--      Redirect URLs so "Forgot password?" links work.
+--   5. To enable push notifications and the calendar subscribe feed, see
+--      the "Setting up push notifications" and "Calendar sync" sections of
+--      README.md — both need one Edge Function deployed via the Supabase
+--      CLI, which can't be done from inside this SQL file.
 -- =============================================================================

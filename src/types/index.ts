@@ -23,6 +23,18 @@ export interface Profile {
   email: string | null;
   role: UserRole;
   created_at: string;
+  /** Unguessable token identifying this user to the calendar-feed Edge Function — see the "Calendar sync" README section. */
+  feed_token: string;
+}
+
+/** One browser/device registered for Web Push — see push_subscriptions in schema.sql. */
+export interface PushSubscriptionRecord {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
 }
 
 export interface Task {

@@ -2,6 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Set the light/dark theme attribute before anything paints, so there's
+         no flash of the wrong theme while React/CSS load. Keep the storage
+         key ("mhf-theme-preference") in sync with src/context/ThemeContext.tsx. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('mhf-theme-preference');
+          var pref = stored === 'light' || stored === 'dark' ? stored : 'system';
+          var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (e) {
+          // localStorage/matchMedia unavailable (e.g. private browsing edge
+          // cases) — fall back to the CSS default (light).
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Assign and track employee tasks on a simple calendar." />

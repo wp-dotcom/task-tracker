@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleRoute from './components/RoleRoute';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import AdminCalendarPage from './pages/AdminCalendarPage';
 import AdminTasksPage from './pages/AdminTasksPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
@@ -16,6 +17,7 @@ import AdminTemplatesPage from './pages/AdminTemplatesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import EmployeeMyTasksPage from './pages/EmployeeMyTasksPage';
 import EmployeeCalendarPage from './pages/EmployeeCalendarPage';
+import NotificationsPage from './pages/NotificationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ConfigMissingPage from './pages/ConfigMissingPage';
 
@@ -43,6 +45,8 @@ function AuthenticatedApp() {
               <Route index element={<HomeRedirect />} />
 
               <Route path="calendar" element={<CalendarRoute />} />
+
+              <Route path="notifications" element={<NotificationsPage />} />
 
               <Route
                 path="tasks"
@@ -106,6 +110,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/*" element={<AuthenticatedApp />} />
         </Routes>
       </AuthProvider>

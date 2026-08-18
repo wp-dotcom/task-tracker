@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import OfflineBanner from './OfflineBanner';
+import ThemeToggle from './ThemeToggle';
 
 const BASE_TITLE = 'Mid Haven Furniture';
 
@@ -16,12 +17,14 @@ const ADMIN_NAV: NavItem[] = [
   { to: '/tasks', label: 'Tasks' },
   { to: '/employees', label: 'Employees' },
   { to: '/templates', label: 'Templates' },
+  { to: '/notifications', label: 'Notifications' },
   { to: '/settings', label: 'Settings' },
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [
   { to: '/my-tasks', label: 'My Tasks' },
   { to: '/calendar', label: 'Calendar' },
+  { to: '/notifications', label: 'Notifications' },
 ];
 
 export default function AppLayout() {
@@ -89,6 +92,10 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <div className="sidebar-theme">
+            <span className="sidebar-theme-label">Theme</span>
+            <ThemeToggle id="sidebar-theme-toggle" />
+          </div>
           <div className="sidebar-user">
             <div className="sidebar-user-name">{profile?.full_name}</div>
             <div className="sidebar-user-role">{profile?.role === 'admin' ? 'Admin' : 'Employee'}</div>
@@ -154,6 +161,10 @@ export default function AppLayout() {
               </NavLink>
             ))}
             <div className="mobile-menu-divider" />
+            <div className="mobile-menu-theme">
+              <span className="sidebar-theme-label">Theme</span>
+              <ThemeToggle id="mobile-theme-toggle" />
+            </div>
             <div className="mobile-menu-user">
               <div className="sidebar-user-name">{profile?.full_name}</div>
               <div className="sidebar-user-role">
