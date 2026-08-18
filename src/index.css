@@ -1053,6 +1053,250 @@ button {
 }
 
 /* =============================================================================
+   Mobile calendar (Apple Calendar-style month/week + agenda)
+   Swapped in for FullCalendar below MOBILE_BREAKPOINT_PX — see
+   MobileAgendaCalendar.tsx / TaskCalendar.tsx.
+   ============================================================================= */
+.apple-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.apple-calendar-nav {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 1.6rem;
+  line-height: 1;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.apple-calendar-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.apple-calendar-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apple-calendar-today {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border: none;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.apple-calendar-mode-toggle {
+  display: flex;
+  background: var(--color-bg);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.apple-calendar-mode-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.apple-calendar-mode-btn.active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.apple-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  touch-action: pan-y;
+}
+
+.apple-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 4px 0 8px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.apple-calendar-grid-week .apple-calendar-day {
+  padding-bottom: 10px;
+}
+
+.apple-calendar-day.outside {
+  color: var(--color-text-faint);
+}
+
+.apple-calendar-day-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.apple-calendar-day-number.today {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.apple-calendar-day-number.selected {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.apple-calendar-day-dots {
+  display: flex;
+  gap: 3px;
+  height: 6px;
+  align-items: center;
+}
+
+.apple-calendar-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.apple-agenda {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.apple-agenda-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.apple-agenda-date {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.apple-agenda-add {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apple-agenda-empty {
+  color: var(--color-text-faint);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.apple-agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apple-agenda-item {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.apple-agenda-item:hover {
+  border-color: #c9cdd4;
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-agenda-item-bar {
+  width: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.apple-agenda-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.apple-agenda-item-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apple-agenda-item-sub {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* =============================================================================
    Task templates (presets)
    ============================================================================= */
 .template-picker {
@@ -1492,30 +1736,21 @@ button {
   }
 }
 
-/* Below this width the calendar defaults to a single day (see
-   MOBILE_BREAKPOINT_PX in TaskCalendar.tsx) — one big column instead of a
-   cramped grid, so it's worth being generous with text size here since
-   there's a full phone-width column to fill. */
+/* Below this width, TaskCalendar swaps FullCalendar out for the Apple
+   Calendar-style MobileAgendaCalendar (see MOBILE_BREAKPOINT_PX in
+   TaskCalendar.tsx) — these rules only ever apply to that component. Give
+   the outer card less padding here so the grid gets the full phone width. */
 @media (max-width: 640px) {
-  .fc-task-event {
-    font-size: 0.92rem;
-    padding: 4px 6px;
+  .task-calendar {
+    padding: 12px 10px;
   }
 
-  .fc-task-title-line {
+  .apple-calendar-title {
+    font-size: 1.05rem;
+  }
+
+  .apple-agenda-item-title {
     white-space: normal;
-  }
-
-  .fc-task-time {
-    font-size: 0.85rem;
-  }
-
-  .fc-task-desc-line {
-    font-size: 0.8rem;
-  }
-
-  .fc .fc-toolbar-title {
-    font-size: 0.95rem;
   }
 }
 

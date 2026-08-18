@@ -401,15 +401,30 @@ of month), since a week at a glance is usually more useful day-to-day. The
 admin's calendar still opens on month view. Either can switch views anytime
 using the month/week/day buttons at the top right of the calendar.
 
+### Phone calendar (Apple Calendar-style)
+
 On a phone-sized screen (roughly 640px wide or narrower — basically any
-phone), both the admin and employee calendars open on the **day** view
-instead, regardless of the above — a 7-column month or week grid squeezes
-each day into a sliver too narrow to actually read on a phone. Day view
-shows one day at a time, full width, with its tasks/appointments stacked
-down the hours of the day — scroll down to see later in the day, and use
-the Day/Week/Month buttons to switch manually anytime. This is decided once
-when the calendar loads, not re-decided every time you rotate the phone or
-resize a window, so it won't yank the view out from under you mid-use.
+phone), both the admin and employee calendars switch to a completely
+different, compact layout modeled on the iPhone's built-in Calendar app,
+instead of squeezing FullCalendar's month/week grid into a sliver too
+narrow to read:
+
+- A small **month grid** up top shows just day numbers, with a tiny coloured
+  dot under any day that has a task or appointment/delivery — no event text
+  crammed into the cells. Tap a **Month/Week** toggle to switch to a
+  horizontally-scrollable week strip instead, same dots. Swipe left/right on
+  the grid (or use the ‹ › arrows) to move to the next/previous month or
+  week; tap **Today** to jump back to today.
+- Tapping any day selects it — shown as a filled blue circle around the day
+  number — and its tasks and appointments/deliveries list out below the
+  grid, sorted by time, each tappable to open the same details view as
+  everywhere else. Tap the **+** button next to the date to add a task or
+  appointment/delivery for that day.
+
+This layout is decided once when the calendar loads, not re-decided every
+time you rotate the phone or resize a window, so it won't change out from
+under you mid-use. On tablet and desktop widths, the calendar is still the
+full FullCalendar month/week/day grid described above.
 
 ## Installing it like an app (mobile)
 
@@ -716,12 +731,23 @@ preserving completed ones as history.
       with the app's actual logo (not a blank/generic icon); tapping it
       opens the app full-screen with no address bar or Safari toolbar
       visible on *any* page, including Calendar.
-- [ ] On a phone-width screen, the Calendar page opens showing a single day
-      (not a squeezed week/month grid), with today's tasks/appointments
-      readable at a glance; the Day/Week/Month buttons still let you switch
-      views manually.
+- [ ] On a phone-width screen, the Calendar page opens showing the compact
+      Apple Calendar-style month grid (not a squeezed FullCalendar grid),
+      with small dots under days that have tasks/appointments, rather than
+      event text crammed into cells.
+- [ ] On that phone view, tapping a day fills its number with a blue circle
+      and lists that day's tasks/appointments below the grid, sorted by
+      time; tapping an item opens the same details view as everywhere else.
+- [ ] Tapping **Week** switches to a single scrollable week row (same dots,
+      same tap-to-select behavior); tapping **Month** switches back.
+- [ ] The ‹ › arrows and swiping left/right on the grid move to the
+      previous/next month or week; **Today** jumps back to today.
+- [ ] Tapping the **+** next to the agenda date opens the same "Task or
+      Appointment/Delivery?" chooser (or goes straight to whichever one you
+      can create) as clicking a date on desktop.
 - [ ] On a normal desktop-width browser window, the calendar's default view
-      is unchanged from before (admin: month, employee: week).
+      is unchanged from before (admin: month, employee: week, full
+      FullCalendar grid).
 - [ ] On a phone-width screen, navigation is a **☰** button in the top
       right (no bottom tab bar, no full sidebar); tapping it opens a
       dropdown with the same links the desktop sidebar has.

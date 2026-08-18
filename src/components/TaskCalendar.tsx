@@ -12,6 +12,7 @@ import { formatDueDate, toLocalHHMM, toLocalISODate } from '../lib/dates';
 import { getErrorMessage } from '../lib/errors';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
 import ConfirmDialog from './ConfirmDialog';
+import MobileAgendaCalendar from './MobileAgendaCalendar';
 
 interface TaskCalendarProps {
   tasks: TaskWithProfiles[];
@@ -62,15 +63,14 @@ function truncate(text: string, maxLength: number): string {
   return `${trimmed.slice(0, maxLength).trimEnd()}…`;
 }
 
-// Below this width, a 7-column month (or even 7-day week) grid squeezes each
-// day into a sliver too narrow to read at a glance. On a screen this size we
-// default to a single day instead — fewer days on screen, but each one full
-// width, with the day's tasks/appointments stacked down the time axis
-// (scroll down for later hours) rather than crammed sideways. Only decided
-// once, from the screen size when the calendar first mounts — rotating the
-// phone or resizing a desktop window afterward doesn't yank the view out
-// from under you; the Day/Week/Month buttons in the toolbar always still
-// work to switch manually.
+// Below this width, FullCalendar's grid (even a single day's worth of hourly
+// slots) doesn't read well on a phone — event text gets cramped no matter
+// the view. Below this width we swap FullCalendar out entirely for
+// MobileAgendaCalendar: a compact month/week grid with small dot indicators
+// (Apple Calendar's pattern) and the selected day's items listed below it.
+// Only decided once, from the screen size when the calendar first mounts —
+// rotating the phone or resizing a desktop window afterward doesn't yank the
+// layout out from under you.
 const MOBILE_BREAKPOINT_PX = 640;
 
 function isNarrowScreen(): boolean {
@@ -153,7 +153,7 @@ export default function TaskCalendar({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [quickCreate, setQuickCreate] = useState<QuickCreateState | null>(null);
-  const [effectiveInitialView] = useState(() => (isNarrowScreen() ? 'timeGridDay' : initialView));
+  const [isMobile] = useState(() => isNarrowScreen());
 
   const canCreateTask = Boolean(onDateClick);
   const canCreateCalendarEvent = Boolean(onCalendarEventDateClick);
@@ -315,31 +315,41 @@ export default function TaskCalendar({
           {error}
         </div>
       )}
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView={effectiveInitialView}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay',
-        }}
-        height="auto"
-        slotMinTime="08:00:00"
-        slotMaxTime="20:00:00"
-        events={events}
-        eventContent={renderEventContent}
-        eventDisplay="block"
-        editable={editable}
-        eventStartEditable={editable}
-        selectable={canQuickCreate}
-        select={canQuickCreate ? handleSelect : undefined}
-        dateClick={canQuickCreate ? handleDateClick : undefined}
-        eventClick={handleEventClick}
-        eventDrop={editable ? handleEventDrop : undefined}
-        dayMaxEvents={3}
-        firstDay={0}
-      />
+      {isMobile ? (
+        <MobileAgendaCalendar
+          tasks={tasks}
+          calendarEvents={calendarEvents}
+          onSelectTask={onSelectTask}
+          onSelectCalendarEvent={onSelectCalendarEvent}
+          onAddForDate={canQuickCreate ? (dateStr) => triggerQuickCreate(dateStr, undefined, null) : undefined}
+        />
+      ) : (
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView={initialView}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+          }}
+          height="auto"
+          slotMinTime="08:00:00"
+          slotMaxTime="20:00:00"
+          events={events}
+          eventContent={renderEventContent}
+          eventDisplay="block"
+          editable={editable}
+          eventStartEditable={editable}
+          selectable={canQuickCreate}
+          select={canQuickCreate ? handleSelect : undefined}
+          dateClick={canQuickCreate ? handleDateClick : undefined}
+          eventClick={handleEventClick}
+          eventDrop={editable ? handleEventDrop : undefined}
+          dayMaxEvents={3}
+          firstDay={0}
+        />
+      )}
 
       {quickCreate && (
         <>
