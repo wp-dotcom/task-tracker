@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../lib/errors';
+import { playCompletionSound } from '../lib/completionEffects';
 import UrgencyBadge from './UrgencyBadge';
 import ConfirmDialog from './ConfirmDialog';
+import CompletionBurst from './CompletionBurst';
 
 interface TaskCardProps {
   task: TaskWithProfiles;
@@ -60,6 +62,7 @@ export default function TaskCard({
   const [revealed, setRevealed] = useState<'none' | 'left' | 'right'>('none');
   const [swipeBusy, setSwipeBusy] = useState(false);
   const [confirmSwipeDelete, setConfirmSwipeDelete] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
   // Tracks whether a drag is actively in progress, so CSS can disable the
   // snap transition while live-tracking the finger (1:1, no lag) and only
   // re-enable it for the snap-open/snap-back on release.
@@ -141,6 +144,8 @@ export default function TaskCard({
     setSwipeBusy(true);
     try {
       await completeTask(task.id);
+      playCompletionSound();
+      setJustCompleted(true);
       showToast('Marked complete');
     } catch (err) {
       showToast(getErrorMessage(err), 'error');
@@ -229,6 +234,8 @@ export default function TaskCard({
           <UrgencyBadge urgency={task.urgency} />
         </div>
       </button>
+
+      {justCompleted && <CompletionBurst onDone={() => setJustCompleted(false)} />}
 
       <ConfirmDialog
         open={confirmSwipeDelete}

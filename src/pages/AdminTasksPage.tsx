@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { useEmployees } from '../hooks/useEmployees';
 import { filterTasks } from '../lib/filterTasks';
 import { getErrorMessage } from '../lib/errors';
+import { playCompletionSound } from '../lib/completionEffects';
 import type { TaskListFilter, TaskWithProfiles } from '../types';
 import TaskCard from '../components/TaskCard';
 import TaskFilterBar from '../components/TaskFilterBar';
@@ -129,6 +130,11 @@ export default function AdminTasksPage() {
     const ids = Array.from(selectedIds);
     try {
       await Promise.all(ids.map((id) => completeTask(id)));
+      // One chime for the whole batch, not one per task — N overlapping
+      // copies of the same sound would be noise, not a celebration. No
+      // burst animation here either, since there's no single card to
+      // anchor it to once several rows disappear from the list at once.
+      playCompletionSound();
       showToast(`${ids.length} task${ids.length === 1 ? '' : 's'} marked complete`);
       clearSelection();
     } catch (err) {

@@ -1172,9 +1172,14 @@ never a second employee, even via a direct API call.
 - [ ] Before opening it, the admin's task details show "Not viewed yet."
 - [ ] Employee opens the task; admin's view now shows an exact viewed
       timestamp.
-- [ ] Employee taps **Mark Complete**; the task details popup closes right
-      away, and the admin's view immediately shows it as completed with an
-      exact timestamp (no refresh needed, via Realtime).
+- [ ] Employee taps **Mark Complete**; a brief checkmark animation plays
+      (with a short chime, if the device's sound isn't muted) before the
+      task details popup closes, and the admin's view immediately shows it
+      as completed with an exact timestamp (no refresh needed, via
+      Realtime). Swiping a task card to complete it plays the same
+      animation and sound right on the card; completing several tasks at
+      once (admin bulk actions) plays the chime once for the whole batch,
+      not once per task.
 - [ ] Admin reopens the task from the details view; it becomes active again.
 - [ ] The Activity tab on the task shows the full history: created, viewed,
       completed, reopened.

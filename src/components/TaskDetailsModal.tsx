@@ -6,12 +6,14 @@ import { useToast } from '../context/ToastContext';
 import { useTaskEvents } from '../hooks/useTaskEvents';
 import { formatDueDate, formatDueTime, formatTimestamp, isTaskDueSoon, isTaskOverdue } from '../lib/dates';
 import { getErrorMessage } from '../lib/errors';
+import { playCompletionSound } from '../lib/completionEffects';
 import UrgencyBadge from './UrgencyBadge';
 import ActivityLog from './ActivityLog';
 import ConfirmDialog from './ConfirmDialog';
 import TaskFormModal from './TaskFormModal';
 import TaskComments from './TaskComments';
 import TaskPhotos from './TaskPhotos';
+import CompletionBurst, { BURST_LIFETIME_MS } from './CompletionBurst';
 
 interface TaskDetailsModalProps {
   task: TaskWithProfiles | null;
@@ -31,6 +33,7 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
   const [confirmStopRecurrence, setConfirmStopRecurrence] = useState(false);
   const [editing, setEditing] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
   const isOwner = task && profile ? task.assigned_to === profile.id : false;
@@ -68,8 +71,13 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
     setError(null);
     try {
       await completeTask(task.id);
+      playCompletionSound();
+      setJustCompleted(true);
       showToast('Marked complete');
-      onClose();
+      // Give the completion burst a moment to actually be seen before the
+      // modal closes out from under it — closing immediately would mean
+      // nobody ever sees it play.
+      setTimeout(onClose, BURST_LIFETIME_MS);
     } catch (err) {
       setError(getErrorMessage(err));
       setBusy(false);
@@ -156,6 +164,8 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
         <button type="button" className="modal-close-x" aria-label="Close" onClick={onClose}>
           ×
         </button>
+
+        {justCompleted && <CompletionBurst onDone={() => setJustCompleted(false)} />}
 
         <div className="task-details-header">
           <h2 id="task-details-title" className={task.status === 'completed' ? 'strike' : ''}>
