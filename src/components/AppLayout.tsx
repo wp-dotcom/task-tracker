@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { TouchEvent as ReactTouchEvent } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import OfflineBanner from './OfflineBanner';
@@ -28,6 +29,20 @@ const EMPLOYEE_NAV: NavItem[] = [
   { to: '/notifications', label: 'Notifications' },
 ];
 
+// Swipe left/right anywhere on a page to move to the next/previous item in
+// the nav above (same order as the sidebar/mobile menu), with wraparound.
+// Same drag-then-commit-or-snap-back shape as TaskCard's swipe, just for a
+// whole page instead of a 84px reveal.
+const PAGE_SWIPE_TAP_SLOP_PX = 8;
+const PAGE_SWIPE_THRESHOLD_PX = 60;
+const PAGE_SWIPE_EXIT_MS = 220;
+// Things that already own left/right swipe (a task card, the mobile
+// calendar's month/week paging) or need native horizontal drag/scroll (a
+// code block, FullCalendar's own drag-to-select) or float above the page as
+// an overlay (a modal) — a swipe starting on any of these should do what
+// THAT element does, not change pages out from under it.
+const PAGE_SWIPE_IGNORE_SELECTOR = '.task-card, .apple-calendar-grid, .modal-overlay, .code-block, .fc';
+
 export default function AppLayout() {
   const { profile, signOut } = useAuth();
   const { tasks } = useTasks();
@@ -36,6 +51,92 @@ export default function AppLayout() {
   // Where tapping the brand/logo takes you — each role's own task list.
   const tasksPath = isAdmin ? '/tasks' : '/my-tasks';
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // -1 on a page that isn't in the nav at all (e.g. Change Password, an
+  // employee detail page) — swiping there does nothing, since there's no
+  // well-defined "next" page to jump to.
+  const currentNavIndex = nav.findIndex((item) => item.to === location.pathname);
+
+  const [pageSwipeX, setPageSwipeX] = useState(0);
+  const [pageSwipeDragging, setPageSwipeDragging] = useState(false);
+  const [pageSwipeExiting, setPageSwipeExiting] = useState(false);
+  const [pageSwipeEnter, setPageSwipeEnter] = useState<'from-left' | 'from-right' | null>(null);
+  const pageSwipeStartX = useRef<number | null>(null);
+  const pageSwipeStartY = useRef<number | null>(null);
+  const pageSwipeDraggingRef = useRef(false);
+  const pendingPageSwipeNav = useRef<{ to: string; dir: 'from-left' | 'from-right' } | null>(null);
+
+  function handlePageSwipeStart(e: ReactTouchEvent) {
+    if (pageSwipeExiting || currentNavIndex < 0) return;
+    if (e.target instanceof Element && e.target.closest(PAGE_SWIPE_IGNORE_SELECTOR)) return;
+    pageSwipeStartX.current = e.touches[0]?.clientX ?? null;
+    pageSwipeStartY.current = e.touches[0]?.clientY ?? null;
+    pageSwipeDraggingRef.current = false;
+  }
+
+  function handlePageSwipeMove(e: ReactTouchEvent) {
+    if (pageSwipeStartX.current == null) return;
+    const x = e.touches[0]?.clientX ?? pageSwipeStartX.current;
+    const y = e.touches[0]?.clientY ?? pageSwipeStartY.current ?? 0;
+    const dx = x - pageSwipeStartX.current;
+    const dy = y - (pageSwipeStartY.current ?? 0);
+
+    if (!pageSwipeDraggingRef.current) {
+      if (Math.abs(dx) < PAGE_SWIPE_TAP_SLOP_PX && Math.abs(dy) < PAGE_SWIPE_TAP_SLOP_PX) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        pageSwipeStartX.current = null; // vertical scroll, not a page swipe
+        return;
+      }
+      pageSwipeDraggingRef.current = true;
+      setPageSwipeDragging(true);
+    }
+    setPageSwipeX(Math.max(-window.innerWidth, Math.min(window.innerWidth, dx)));
+  }
+
+  function handlePageSwipeEnd() {
+    if (pageSwipeStartX.current == null) return;
+    pageSwipeStartX.current = null;
+    if (!pageSwipeDraggingRef.current) return;
+    pageSwipeDraggingRef.current = false;
+    setPageSwipeDragging(false);
+
+    if (Math.abs(pageSwipeX) < PAGE_SWIPE_THRESHOLD_PX) {
+      setPageSwipeX(0);
+      return;
+    }
+    const goingNext = pageSwipeX < 0;
+    const targetIndex = (currentNavIndex + (goingNext ? 1 : -1) + nav.length) % nav.length;
+    const target = nav[targetIndex];
+    const reduceMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setPageSwipeX(0);
+      navigate(target.to);
+      return;
+    }
+    setPageSwipeExiting(true);
+    setPageSwipeX(goingNext ? -window.innerWidth : window.innerWidth);
+    pendingPageSwipeNav.current = { to: target.to, dir: goingNext ? 'from-right' : 'from-left' };
+  }
+
+  // Once the current page has finished sliding off, actually change routes
+  // and let the new page slide in from the opposite edge.
+  useEffect(() => {
+    if (!pageSwipeExiting) return;
+    const timer = setTimeout(() => {
+      const pending = pendingPageSwipeNav.current;
+      pendingPageSwipeNav.current = null;
+      setPageSwipeExiting(false);
+      setPageSwipeX(0);
+      if (pending) {
+        navigate(pending.to);
+        setPageSwipeEnter(pending.dir);
+      }
+    }, PAGE_SWIPE_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [pageSwipeExiting, navigate]);
 
   // Unviewed, still-open tasks — the whole point of "New" is that the
   // employee hasn't looked at it yet, so completed tasks don't count.
@@ -107,10 +208,29 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <main className="app-main">
+      <main
+        className="app-main"
+        onTouchStart={handlePageSwipeStart}
+        onTouchMove={handlePageSwipeMove}
+        onTouchEnd={handlePageSwipeEnd}
+        onTouchCancel={handlePageSwipeEnd}
+      >
         <PullToRefresh />
         <OfflineBanner />
-        <Outlet />
+        <div
+          className={`page-swipe-viewport${pageSwipeEnter ? ` page-swipe-enter-${pageSwipeEnter}` : ''}`}
+          style={
+            pageSwipeDragging || pageSwipeExiting
+              ? {
+                  transform: `translateX(${pageSwipeX}px)`,
+                  transition: pageSwipeDragging ? 'none' : `transform ${PAGE_SWIPE_EXIT_MS}ms ease`,
+                }
+              : undefined
+          }
+          onAnimationEnd={() => setPageSwipeEnter(null)}
+        >
+          <Outlet />
+        </div>
       </main>
 
       <header className="mobile-topbar">

@@ -824,6 +824,22 @@ sidebar) is a link back to your own task list — the Tasks page for the
 admin, My Tasks for an employee — a quick way home from anywhere in the
 app.
 
+### Swipe between pages
+
+On a touchscreen, swiping left or right anywhere on a page moves to the
+next/previous item in the nav above (the same order as the sidebar/menu),
+wrapping around at either end — e.g. for an admin, swiping left on
+Calendar goes to Tasks, and swiping left again eventually wraps back around
+to Calendar from Settings. The page visibly slides with your finger as you
+drag, so it's clear the swipe is what's changing it, and it snaps back if
+you don't swipe far enough to commit.
+
+This is skipped on task cards (which already swipe to complete/delete) and
+on the mobile calendar (which already swipes to page between months/weeks)
+— it only takes over on the page's empty background, so neither of those
+existing gestures gets stolen by it. It's also skipped on pages outside the
+nav (like Change Password) and while any pop-up dialog is open.
+
 ## Appointments & deliveries
 
 Unlike tasks (which only an admin creates and assigns), **any signed-in

@@ -700,7 +700,9 @@ button {
   .task-card-due-soon,
   .fc-task-due-soon,
   .task-complete-burst-icon,
-  .task-complete-burst-icon::after {
+  .task-complete-burst-icon::after,
+  .page-swipe-enter-from-right,
+  .page-swipe-enter-from-left {
     animation: none !important;
   }
 }
@@ -760,12 +762,61 @@ button {
   flex: 1;
   min-width: 0;
   padding: 28px 32px 80px;
+  /* The page-swipe transition below slides content a full screen-width off
+     to one side before the route actually changes — without this, that
+     shows up as a horizontal scrollbar/overflow rather than staying hidden
+     off-screen like it's supposed to. Safe to clip: nothing in the app
+     relies on .app-main scrolling horizontally, and position: fixed
+     descendants (modals, dropdowns) aren't affected by an ancestor's
+     overflow unless that ancestor also has a transform, which this doesn't. */
+  overflow-x: hidden;
 }
 
 .mobile-topbar,
 .mobile-menu-backdrop,
 .mobile-menu {
   display: none;
+}
+
+/* Swipe left/right on a page to move to the next/previous item in the nav
+   (AppLayout.tsx) — this wraps <Outlet/> so only the routed page content
+   slides, not the pull-to-refresh indicator or offline banner above it.
+   During an active drag or the post-release exit, JS sets an inline
+   transform directly (so it can track the finger 1:1); once that clears,
+   whichever of these two keyframes applies takes over to slide the newly
+   routed-to page in from the edge the old page exited toward. */
+.page-swipe-viewport {
+  min-width: 0;
+}
+
+@keyframes page-swipe-enter-from-right {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes page-swipe-enter-from-left {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.page-swipe-enter-from-right {
+  animation: page-swipe-enter-from-right 0.22s ease-out both;
+}
+
+.page-swipe-enter-from-left {
+  animation: page-swipe-enter-from-left 0.22s ease-out both;
 }
 
 /* =============================================================================
