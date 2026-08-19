@@ -113,6 +113,10 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  /* Backstop for the viewport meta tag's user-scalable=no: also blocks the
+     double-tap-to-zoom gesture specifically (some browsers still allow it
+     even with pinch-zoom disabled), without affecting normal scrolling. */
+  touch-action: manipulation;
 }
 
 h1,
@@ -2362,6 +2366,33 @@ button {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* =============================================================================
+   Pull to refresh
+   ============================================================================= */
+.pull-to-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: -8px 0 8px;
+}
+
+.pull-to-refresh-spinner {
+  width: 22px;
+  height: 22px;
+}
+
+.pull-to-refresh-arrow {
+  font-size: 1.2rem;
+  color: var(--color-text-faint);
+  transition: transform 0.15s ease;
+}
+
+.pull-to-refresh-arrow-ready {
+  color: var(--color-primary);
+  transform: rotate(180deg);
 }
 
 /* =============================================================================

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import OfflineBanner from './OfflineBanner';
+import PullToRefresh from './PullToRefresh';
 import ThemeToggle from './ThemeToggle';
 
 const BASE_TITLE = 'Mid Haven Furniture';
@@ -107,6 +108,7 @@ export default function AppLayout() {
       </aside>
 
       <main className="app-main">
+        <PullToRefresh />
         <OfflineBanner />
         <Outlet />
       </main>
