@@ -6,6 +6,8 @@ import { useEmployees } from '../hooks/useEmployees';
 import { filterTasks } from '../lib/filterTasks';
 import { getErrorMessage } from '../lib/errors';
 import { playCompletionSound } from '../lib/completionEffects';
+import { isTaskDueToday, isTaskOverdue } from '../lib/dates';
+import { buildDayBuckets, buildFutureWeekBuckets, byUrgencyThenDate } from '../lib/taskGrouping';
 import type { TaskListFilter, TaskWithProfiles } from '../types';
 import TaskCard from '../components/TaskCard';
 import TaskFilterBar from '../components/TaskFilterBar';
@@ -99,6 +101,37 @@ export default function AdminTasksPage() {
     () => filterTasks(tasks, { filter, employeeId, search }),
     [tasks, filter, employeeId, search],
   );
+
+  // Same Overdue / Today / (rest-of-week day-by-day) / Next 3 weeks grouping
+  // as the employee My Tasks page, applied to whatever visibleTasks already
+  // came out of the filter bar above (so the status/employee/search filters
+  // still narrow things exactly as before — this only changes how the
+  // result is grouped, not which tasks show up). Unlike the employee page,
+  // nothing here is capped to that rolling 3-week window and quietly
+  // dropped — an admin needs to see everything, so anything further out
+  // lands in a catch-all "Later" section instead of disappearing.
+  const groupedTasks = useMemo(() => {
+    const open = visibleTasks.filter((t) => t.status === 'open');
+    const overdue = open.filter((t) => isTaskOverdue(t)).sort(byUrgencyThenDate);
+    const today = open.filter((t) => isTaskDueToday(t) && !isTaskOverdue(t)).sort(byUrgencyThenDate);
+    const upcoming = open.filter((t) => !isTaskDueToday(t) && !isTaskOverdue(t));
+
+    const days = buildDayBuckets(upcoming);
+    const futureWeeks = buildFutureWeekBuckets(upcoming);
+
+    const bucketed = new Set([...days.flatMap((d) => d.tasks), ...futureWeeks.flatMap((w) => w.tasks)].map(
+      (t) => t.id,
+    ));
+    const later = upcoming
+      .filter((t) => !bucketed.has(t.id))
+      .sort((a, b) => a.due_date.localeCompare(b.due_date) || byUrgencyThenDate(a, b));
+
+    const completed = visibleTasks
+      .filter((t) => t.status === 'completed')
+      .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
+
+    return { overdue, today, days, futureWeeks, later, completed };
+  }, [visibleTasks]);
 
   const filtersActive = filter !== 'all' || employeeId !== 'all' || search.trim() !== '';
 
@@ -219,19 +252,84 @@ export default function AdminTasksPage() {
           )}
         </div>
       ) : (
-        <div className="task-list">
-          {visibleTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={() => setSelectedTask(task)}
-              showAssignee
-              selectable={selectMode}
-              selected={selectedIds.has(task.id)}
-              onToggleSelect={() => toggleSelected(task.id)}
+        <>
+          {groupedTasks.overdue.length > 0 && (
+            <AdminTaskSection
+              title="Overdue"
+              tasks={groupedTasks.overdue}
+              onSelect={setSelectedTask}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelected}
             />
-          ))}
-        </div>
+          )}
+
+          {groupedTasks.today.length > 0 && (
+            <AdminTaskSection
+              title="Today"
+              tasks={groupedTasks.today}
+              onSelect={setSelectedTask}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelected}
+            />
+          )}
+
+          {groupedTasks.days.some((d) => d.tasks.length > 0) && (
+            <div className="task-week-group">
+              {groupedTasks.days
+                .filter((d) => d.tasks.length > 0)
+                .map((d) => (
+                  <AdminTaskSection
+                    key={d.dateStr}
+                    title={d.label}
+                    tasks={d.tasks}
+                    onSelect={setSelectedTask}
+                    selectMode={selectMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelected}
+                  />
+                ))}
+            </div>
+          )}
+
+          {groupedTasks.futureWeeks
+            .filter((w) => w.tasks.length > 0)
+            .map((w) => (
+              <AdminTaskSection
+                key={w.key}
+                title={w.label}
+                tasks={w.tasks}
+                onSelect={setSelectedTask}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelected}
+              />
+            ))}
+
+          {groupedTasks.later.length > 0 && (
+            <AdminTaskSection
+              title="Later"
+              tasks={groupedTasks.later}
+              onSelect={setSelectedTask}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelected}
+            />
+          )}
+
+          {groupedTasks.completed.length > 0 && (
+            <AdminTaskSection
+              title="Completed"
+              tasks={groupedTasks.completed}
+              onSelect={setSelectedTask}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelected}
+              muted
+            />
+          )}
+        </>
       )}
 
       <TaskFormModal open={formOpen} onClose={() => setFormOpen(false)} />
@@ -291,5 +389,45 @@ export default function AdminTasksPage() {
         onCancel={() => setConfirmBulkDelete(false)}
       />
     </div>
+  );
+}
+
+/** Same section shape as the employee My Tasks page's TaskSection, plus the bulk-select props this page needs. */
+function AdminTaskSection({
+  title,
+  tasks,
+  onSelect,
+  selectMode,
+  selectedIds,
+  onToggleSelect,
+  muted = false,
+}: {
+  title: string;
+  tasks: TaskWithProfiles[];
+  onSelect: (task: TaskWithProfiles) => void;
+  selectMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (taskId: string) => void;
+  muted?: boolean;
+}) {
+  return (
+    <section className={`task-section${muted ? ' task-section-muted' : ''}`}>
+      <h2 className="task-section-title">
+        {title} <span className="task-section-count">{tasks.length}</span>
+      </h2>
+      <div className="task-list">
+        {tasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            onClick={() => onSelect(task)}
+            showAssignee
+            selectable={selectMode}
+            selected={selectedIds.has(task.id)}
+            onToggleSelect={() => onToggleSelect(task.id)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
