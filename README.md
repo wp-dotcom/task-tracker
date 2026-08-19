@@ -172,9 +172,9 @@ newer dashboards):
 Do **not** use the `service_role` key anywhere in this project — it must
 never be shipped to a browser.
 
-A third, optional value — `VITE_VAPID_PUBLIC_KEY` — is only needed if you
-set up push notifications; see step 15 further down. Skip it for now if
-you're not there yet.
+Two more optional values, each independent of the other: `VITE_VAPID_PUBLIC_KEY` is only needed
+if you set up push notifications (step 15), and `VITE_SENTRY_DSN` is only needed for error
+tracking (step 16). Skip both for now if you're not there yet.
 
 ### Local `.env`
 
@@ -547,6 +547,25 @@ timing follows the same cadence — up to a few minutes' delay by default
 lower that schedule (e.g. `'* * * * *'` for every minute) by re-running the
 `cron.unschedule`/`cron.schedule` pair from step 6 with a different
 interval — there's no minimum beyond what your Supabase plan allows.
+
+---
+
+## 16. Error tracking (optional)
+
+If something in the app hits an unexpected error, everyone (admin and employees) now sees a
+plain "Something went wrong — reload page" screen instead of a blank white page — that part
+works with zero setup. What's optional is finding out about it yourself instead of waiting for
+someone to mention it.
+
+1. Create a free account at [sentry.io](https://sentry.io) and a new project (choose "React").
+2. Copy the DSN it gives you (looks like `https://xxxx@xxxx.ingest.sentry.io/xxxx`).
+3. Add it as `VITE_SENTRY_DSN` to your local `.env` and to Netlify's environment variables (see
+   step 7), then redeploy.
+
+That's it — no schema changes, no Edge Function. Leave `VITE_SENTRY_DSN` unset and the app works
+exactly the same, just without anything reported anywhere; error tracking here is intentionally
+minimal (crash reports only, no session replay or performance tracing) since a shop-floor task
+tracker doesn't need more than "tell me when something broke."
 
 ---
 
@@ -1427,3 +1446,14 @@ never a second employee, even via a direct API call.
       once (title, due date, and urgency together, say). An admin editing
       or deleting a task — their own, or one assigned to an employee —
       produces no notification to anyone.
+- [ ] Tapping your name in the sidebar (or the mobile menu) opens **Change
+      password**; entering the wrong current password shows "Current
+      password is incorrect" and changes nothing, and entering the right
+      one plus a matching new password signs you in with it next time.
+- [ ] Setting the due date on a new/edited task to a day in the past shows
+      a small "will start out overdue" note under the field but still lets
+      you save — it's a heads-up, not a block.
+- [ ] Force a render error (e.g. temporarily throw inside a component) and
+      confirm the app shows the "Something went wrong — reload page"
+      screen instead of a blank page; if `VITE_SENTRY_DSN` (step 16) is
+      set, confirm the error shows up in Sentry.

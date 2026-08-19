@@ -353,6 +353,14 @@ export default function TaskFormModal({
                 onChange={(e) => setDueDate(e.target.value)}
                 required
               />
+              {dueDate && dueDate < todayLocalISODate() && (
+                // A heads-up, not a block — backdating is sometimes
+                // intentional (logging work already done), so this only
+                // makes sure it's not an accident rather than refusing it.
+                <p className="muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>
+                  This date is in the past — the task will start out overdue.
+                </p>
+              )}
             </div>
             <div className="field-col">
               <label className="field-label" htmlFor="task-due-time">
