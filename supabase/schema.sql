@@ -29,6 +29,8 @@
 --  20. Calendar subscribe feed: profiles.feed_token + regenerate_my_feed_token()
 --  21. push_subscriptions table (Web Push registrations) + RLS
 --  22. task_push_log table + pg_net/pg_cron wiring for scheduled push checks
+--  23. admin_push_log table + 'admin_overdue' kind (admin activity push notifications)
+--  24. task_deletion_log table (push notifications for task edits + deletions)
 -- =============================================================================
 
 
@@ -1346,6 +1348,89 @@ exception when others then
   raise notice 'Could not enable pg_net here — enable it via Dashboard > Database > Extensions instead.';
 end
 $$;
+
+
+-- -----------------------------------------------------------------------------
+-- 23. admin_push_log + 'admin_overdue' kind (admin activity push notifications)
+-- -----------------------------------------------------------------------------
+-- Extends the same scheduled check-due-tasks Edge Function (no new function
+-- needed) to also notify every admin when an employee completes a task,
+-- adds their own task, or a task goes overdue — not just the assignee.
+--
+-- "completed"/"added" can legitimately happen more than once for the same
+-- task (complete -> reopen -> complete again), so those are de-duped per
+-- task_events row here, unlike task_push_log's "once ever per task" model.
+-- "overdue" is still a one-time-per-task state, so it reuses task_push_log
+-- with a new 'admin_overdue' kind alongside the employee's own 'overdue'.
+create table if not exists public.admin_push_log (
+  task_event_id uuid primary key references public.task_events (id) on delete cascade,
+  sent_at       timestamptz not null default now()
+);
+
+comment on table public.admin_push_log is 'One row per task_events row already turned into an admin push notification. Service-role only.';
+
+alter table public.admin_push_log enable row level security;
+-- No policies — same trust model as task_push_log: only the Edge
+-- Function's service-role key ever touches this table.
+
+alter table public.task_push_log drop constraint if exists task_push_log_kind_check;
+alter table public.task_push_log
+  add constraint task_push_log_kind_check
+  check (kind in ('assigned', 'due_soon', 'overdue', 'admin_overdue'));
+
+
+-- -----------------------------------------------------------------------------
+-- 24. task_deletion_log (push notifications for task edits + deletions)
+-- -----------------------------------------------------------------------------
+-- Edits (title/description/assigned_to/due date/time/urgency changes) are
+-- already captured by the 'edited'/'due_date_changed'/'urgency_changed'
+-- task_events rows from section 9 — check-due-tasks now also turns those
+-- into a push (to every admin if an employee made the edit, or to the
+-- assignee if an admin made it), reusing admin_push_log for de-dupe the
+-- same way as section 23.
+--
+-- Deletions need a table of their own: task_events rows are declared
+-- ON DELETE CASCADE from tasks, so they vanish the instant a task is
+-- deleted — there is nothing left afterward for a scheduled check to find.
+-- This standalone table has no foreign key to tasks (the whole point is
+-- surviving after the task is gone) and its own `notified` flag instead of
+-- admin_push_log, since there's no still-living task_events row to key off.
+create table if not exists public.task_deletion_log (
+  id          uuid primary key default gen_random_uuid(),
+  task_id     uuid not null,
+  title       text not null,
+  assigned_to uuid,
+  created_by  uuid,
+  deleted_by  uuid,
+  deleted_at  timestamptz not null default now(),
+  notified    boolean not null default false
+);
+
+comment on table public.task_deletion_log is 'Snapshot of every deleted task, so check-due-tasks can still notify about a deletion after the task (and its task_events rows) are gone. Service-role only.';
+
+create index if not exists task_deletion_log_notified_idx on public.task_deletion_log (notified);
+
+alter table public.task_deletion_log enable row level security;
+-- No policies — same trust model as task_push_log/admin_push_log: only the
+-- Edge Function's service-role key ever touches this table.
+
+create or replace function public.log_task_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.task_deletion_log (task_id, title, assigned_to, created_by, deleted_by)
+  values (old.id, old.title, old.assigned_to, old.created_by, auth.uid());
+  return old;
+end;
+$$;
+
+drop trigger if exists tasks_log_deletion on public.tasks;
+create trigger tasks_log_deletion
+  after delete on public.tasks
+  for each row execute function public.log_task_deletion();
 
 
 -- =============================================================================

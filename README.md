@@ -427,7 +427,10 @@ immediately.
 
 This one needs a few more pieces: a keypair so only your server can send
 notifications claiming to be your app (VAPID), and a scheduled job that
-periodically checks for tasks that just became assigned/due-soon/overdue.
+periodically checks for tasks that just became assigned/due-soon/overdue —
+and also notifies admins and employees about each other's activity on a
+task (completed, added, first opened, edited, deleted — see "What admins
+and employees notify each other about" below).
 
 1. Generate a VAPID keypair (needs Node):
    ```bash
@@ -514,6 +517,42 @@ see "Installing it like an app" above) — a regular Safari tab can't receive
 them, that's an Apple restriction, not something this app can work around.
 Desktop browsers and Android Chrome support it directly in a normal tab, no
 install required.
+
+### What admins and employees notify each other about
+
+Every employee gets pushed when a task is assigned to them, coming due
+soon, or overdue — that's the "Push notifications" section above. Beyond
+that, admins and employees also notify each other about activity on a
+task, in whichever direction the action happened:
+
+Every **admin** gets pushed whenever an employee:
+
+- marks a task **complete**,
+- **adds their own task** (self-added, not one an admin assigned),
+- **opens a task for the very first time** (not every time they reopen it —
+  just the first, same moment "Not viewed yet" flips to a real timestamp in
+  the task details),
+- **edits** their own self-added task (title, description, due date/time,
+  or urgency — changing several fields in one save is still just one
+  notification, not one per field), or
+- **deletes** their own self-added task.
+
+The **employee assigned to a task** gets pushed whenever an admin **edits**
+or **deletes** that task (an admin's own self-added task is exempt, same as
+completing/adding above — you don't need a push about your own action).
+
+None of this generates a push back to whoever performed the action — only
+the other side of the relationship gets notified. This needs no extra
+setup beyond what's already above (same function, same schedule); if you
+have more than one admin account, every admin gets the employee-side
+notifications.
+
+Since this rides on the same scheduled check as due-soon/overdue, delivery
+timing follows the same cadence — up to a few minutes' delay by default
+(see step 6's `'*/5 * * * *'`). To get closer to real-time for these,
+lower that schedule (e.g. `'* * * * *'` for every minute) by re-running the
+`cron.unschedule`/`cron.schedule` pair from step 6 with a different
+interval — there's no minimum beyond what your Supabase plan allows.
 
 ---
 
@@ -1074,10 +1113,12 @@ schema change) rather than something to rely on happening by itself.
   own device registrations, and there's deliberately no admin carve-out;
   the only thing that ever reads this table for sending is the
   `check-due-tasks` Edge Function's `service_role` key, which bypasses RLS
-  entirely and isn't reachable from any client role. `task_push_log` (which
-  prevents duplicate pushes) has RLS enabled with **zero** policies, which
-  denies every client-side request by default — only that same Edge
-  Function ever touches it.
+  entirely and isn't reachable from any client role. `task_push_log`,
+  `admin_push_log`, and `task_deletion_log` (which prevent duplicate pushes,
+  the last one also surviving a task's own deletion so its notification can
+  still go out) all have RLS enabled with **zero** policies, which denies
+  every client-side request by default — only that same Edge Function ever
+  touches any of them.
 - `profiles.feed_token` (the calendar-subscribe link) follows the same
   trust model as the `task-photos` Storage bucket above: not secret in the
   cryptographic sense, just an unguessable random value, readable only by
@@ -1380,3 +1421,17 @@ never a second employee, even via a direct API call.
       containing a `backup.json` and a `README.md`; the README reads clearly
       on its own, and the JSON contains every person, task, appointment,
       preset, and recurring series currently in the app.
+- [ ] With an admin's device enabled for push notifications, an employee
+      completing a task, an employee adding their own task, an employee
+      opening a task for the first time, and a task assigned to an employee
+      going overdue each produce exactly one notification to the admin —
+      opening that same task again later produces no further notification,
+      and an admin completing/assigning/viewing a task themselves does not
+      produce one either.
+- [ ] An employee editing (or deleting) their own self-added task notifies
+      the admin exactly once, even if the edit changes several fields at
+      once (title, due date, and urgency together, say). An admin editing
+      (or deleting) a task assigned to an employee notifies that employee
+      exactly once. Neither direction produces a notification when the
+      person acting is also the task's own assignee (e.g. an admin editing
+      their own self-added task).
