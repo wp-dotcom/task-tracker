@@ -13,6 +13,7 @@ import ConfirmDialog from './ConfirmDialog';
 import TaskFormModal from './TaskFormModal';
 import TaskComments from './TaskComments';
 import TaskPhotos from './TaskPhotos';
+import TaskReminders from './TaskReminders';
 import CompletionBurst, { BURST_LIFETIME_MS } from './CompletionBurst';
 
 interface TaskDetailsModalProps {
@@ -295,6 +296,8 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
             Close
           </button>
         </div>
+
+        {task.status === 'open' && <TaskReminders taskId={task.id} />}
 
         <TaskPhotos taskId={task.id} />
 

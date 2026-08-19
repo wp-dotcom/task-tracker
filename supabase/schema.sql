@@ -31,6 +31,7 @@
 --  22. task_push_log table + pg_net/pg_cron wiring for scheduled push checks
 --  23. admin_push_log table + 'admin_overdue' kind (admin activity push notifications)
 --  24. task_deletion_log table (push notifications for task edits + deletions)
+--  25. task_reminders + task_reminder_log tables (configurable reminder pushes)
 -- =============================================================================
 
 
@@ -1431,6 +1432,112 @@ drop trigger if exists tasks_log_deletion on public.tasks;
 create trigger tasks_log_deletion
   after delete on public.tasks
   for each row execute function public.log_task_deletion();
+
+
+-- -----------------------------------------------------------------------------
+-- 25. task_reminders + task_reminder_log (configurable per-task reminder pushes)
+-- -----------------------------------------------------------------------------
+-- Lets whoever can already see a task (the assignee, or any admin — see
+-- can_access_task() above) pick one or more "remind me before it's due"
+-- offsets, e.g. 15/30/60/120 minutes. Deliberately its OWN table rather than
+-- a column on tasks: an employee has no UPDATE policy on a task an admin
+-- assigned them (see tasks_update_admin/tasks_update_self above), but they
+-- should still be able to set reminders on it — this table's own, more
+-- permissive RLS (mirroring can_access_task) makes that possible without
+-- loosening tasks' own update policy at all.
+create table if not exists public.task_reminders (
+  id             uuid primary key default gen_random_uuid(),
+  task_id        uuid not null references public.tasks (id) on delete cascade,
+  offset_minutes integer not null check (offset_minutes > 0),
+  created_by     uuid not null references public.profiles (id) on delete cascade,
+  created_at     timestamptz not null default now(),
+  unique (task_id, offset_minutes)
+);
+
+comment on table public.task_reminders is 'Per-task, admin/assignee-configurable "remind me N minutes before due" offsets. Actually sent by check-due-tasks (see task_reminder_log below).';
+
+create index if not exists task_reminders_task_id_idx on public.task_reminders (task_id);
+
+alter table public.task_reminders enable row level security;
+
+drop policy if exists task_reminders_select on public.task_reminders;
+create policy task_reminders_select on public.task_reminders
+  for select
+  to authenticated
+  using (public.can_access_task(task_id));
+
+-- Same rule as select, plus attributing the row to whoever added it.
+drop policy if exists task_reminders_insert on public.task_reminders;
+create policy task_reminders_insert on public.task_reminders
+  for insert
+  to authenticated
+  with check (created_by = auth.uid() and public.can_access_task(task_id));
+
+-- Anyone who can see the task can also remove a reminder from it — not just
+-- whoever originally added it (e.g. the admin clearing one the employee set,
+-- or vice versa), same light-touch model as task_comments_delete above.
+drop policy if exists task_reminders_delete on public.task_reminders;
+create policy task_reminders_delete on public.task_reminders
+  for delete
+  to authenticated
+  using (public.can_access_task(task_id));
+
+grant select, insert, delete on public.task_reminders to authenticated;
+
+-- Live updates: a reminder either side adds/removes shows up for the other
+-- without a refresh, same as task_comments above.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'task_reminders'
+  ) then
+    alter publication supabase_realtime add table public.task_reminders;
+  end if;
+end
+$$;
+
+-- One row per (task, offset) reminder already pushed — same "exactly once"
+-- role as task_push_log, just keyed by offset instead of a fixed kind, since
+-- offset_minutes is admin/employee-chosen rather than one of a few constants.
+-- Service-role only, same trust model as task_push_log.
+create table if not exists public.task_reminder_log (
+  task_id        uuid not null references public.tasks (id) on delete cascade,
+  offset_minutes integer not null,
+  sent_at        timestamptz not null default now(),
+  primary key (task_id, offset_minutes)
+);
+
+comment on table public.task_reminder_log is 'One row per (task, reminder offset) already pushed — prevents duplicate reminder notifications across repeated scheduled checks. Service-role only.';
+
+alter table public.task_reminder_log enable row level security;
+-- No policies — same trust model as task_push_log/admin_push_log: only the
+-- Edge Function's service-role key ever touches this table.
+
+-- Changing a task's due date/time invalidates any reminder that's already
+-- fired relative to the OLD deadline — e.g. a "1 hour before" reminder that
+-- already went out shouldn't be considered "done" once the due time moves;
+-- it needs to be able to fire again relative to the new one. (Unlike
+-- clear_assigned_push_log above, this clears ALL offsets for the task, not
+-- a single kind, since every offset is timed off the same due_date/due_time.)
+create or replace function public.clear_reminder_log_on_due_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.task_reminder_log where task_id = new.id;
+  return new;
+end;
+$$;
+
+drop trigger if exists tasks_clear_reminder_log on public.tasks;
+create trigger tasks_clear_reminder_log
+  before update of due_date, due_time on public.tasks
+  for each row
+  when (old.due_date is distinct from new.due_date or old.due_time is distinct from new.due_time)
+  execute function public.clear_reminder_log_on_due_change();
 
 
 -- =============================================================================

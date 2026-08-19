@@ -6,8 +6,18 @@
 //                 in-app UI already uses to flash it (see DUE_SOON_WINDOW_MS
 //                 in src/lib/dates.ts — kept in sync with the value here)
 //   - "overdue"   once, right after its deadline passes
+//   - "reminder"  once per admin/employee-configured task_reminders row
+//                 (schema.sql section 25), once its offset_minutes puts the
+//                 deadline within range — same "at most once" bookkeeping,
+//                 just via task_reminder_log (keyed by offset) instead of
+//                 task_push_log (keyed by a fixed kind), since offsets are
+//                 arbitrary chosen minutes, not one of a few constants.
 // task_push_log (schema.sql section 22) is what makes each of those
-// "exactly once" rather than "every 5 minutes forever".
+// "exactly once" rather than "every 5 minutes forever". Every "exactly
+// once" check here is level-triggered off "how close is now to the
+// deadline", not edge-triggered off an exact minute — the 5-minute cron
+// tick means a reminder fires the first run where it's already within
+// range, not necessarily the run closest to the exact offset.
 //
 // It also notifies every admin (schema.sql section 23) when an employee —
 // not an admin — completes a task, adds their own task, views a task for
@@ -114,10 +124,40 @@ function isDueSoon(dueDate: string, dueTime: string | null, nowMs: number): bool
   return deadline - nowMs <= DUE_SOON_WINDOW_MS;
 }
 
+// Whether a configured reminder should fire yet — same level-triggered shape
+// as isDueSoon above, just against an admin/employee-chosen window instead
+// of the fixed 2-hour one.
+function isReminderDue(
+  dueDate: string,
+  dueTime: string | null,
+  offsetMinutes: number,
+  nowMs: number,
+): boolean {
+  const deadline = taskDeadlineMs(dueDate, dueTime);
+  if (deadline <= nowMs) return false; // already due/overdue — too late for a "before it's due" reminder
+  return deadline - nowMs <= offsetMinutes * 60 * 1000;
+}
+
+// Mirrors formatReminderOffset() in src/lib/reminders.ts — kept in sync by
+// hand, same as DUE_SOON_WINDOW_MS above, since this Edge Function can't
+// import from src (separate Deno runtime/deploy).
+function formatReminderOffset(minutes: number): string {
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return `${days} day${days === 1 ? '' : 's'}`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `${hours} hour${hours === 1 ? '' : 's'}`;
+  }
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
 type PushKind =
   | 'assigned'
   | 'due_soon'
   | 'overdue'
+  | 'reminder'
   | 'admin_overdue'
   | 'admin_completed'
   | 'admin_added'
@@ -131,6 +171,9 @@ interface PushJob {
   kind: PushKind;
   title: string;
   body: string;
+  // Set only for kind "reminder" — which offset this job is for, so the
+  // send loop below knows which task_reminder_log row to write.
+  offsetMinutes?: number;
   // Set for the admin_task_edited kind above (plural since one edit can
   // fire several task_events rows at once — see the grouping below) —
   // de-duped per task_events row (admin_push_log) instead of per
@@ -181,9 +224,50 @@ Deno.serve(async (req) => {
   }
   const sentSet = new Set((alreadySent ?? []).map((r) => `${r.task_id}:${r.kind}`));
 
+  const openTaskIds = (tasks ?? []).map((t) => t.id);
+  const { data: reminders, error: remindersError } =
+    openTaskIds.length > 0
+      ? await admin.from('task_reminders').select('task_id, offset_minutes').in('task_id', openTaskIds)
+      : { data: [], error: null };
+  if (remindersError) {
+    return new Response(JSON.stringify({ error: remindersError.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const { data: alreadyReminded, error: reminderLogError } = await admin
+    .from('task_reminder_log')
+    .select('task_id, offset_minutes');
+  if (reminderLogError) {
+    return new Response(JSON.stringify({ error: reminderLogError.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const remindedSet = new Set((alreadyReminded ?? []).map((r) => `${r.task_id}:${r.offset_minutes}`));
+  const remindersByTaskId = new Map<string, number[]>();
+  for (const r of reminders ?? []) {
+    const list = remindersByTaskId.get(r.task_id) ?? [];
+    list.push(r.offset_minutes);
+    remindersByTaskId.set(r.task_id, list);
+  }
+
   const jobs: PushJob[] = [];
   for (const task of tasks ?? []) {
     const assignee = profileById.get(task.assigned_to);
+
+    for (const offsetMinutes of remindersByTaskId.get(task.id) ?? []) {
+      if (remindedSet.has(`${task.id}:${offsetMinutes}`)) continue;
+      if (!isReminderDue(task.due_date, task.due_time, offsetMinutes, nowMs)) continue;
+      jobs.push({
+        taskId: task.id,
+        userId: task.assigned_to,
+        kind: 'reminder',
+        offsetMinutes,
+        title: 'Task reminder',
+        body: `"${task.title}" is due in ${formatReminderOffset(offsetMinutes)}`,
+      });
+    }
 
     if (!sentSet.has(`${task.id}:assigned`)) {
       jobs.push({
@@ -452,6 +536,10 @@ Deno.serve(async (req) => {
       for (const id of job.taskEventIds) {
         await admin.from('admin_push_log').upsert({ task_event_id: id });
       }
+    } else if (job.kind === 'reminder') {
+      await admin
+        .from('task_reminder_log')
+        .upsert({ task_id: job.taskId, offset_minutes: job.offsetMinutes });
     } else {
       await admin.from('task_push_log').upsert({ task_id: job.taskId, kind: job.kind });
     }

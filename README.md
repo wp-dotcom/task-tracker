@@ -548,6 +548,28 @@ lower that schedule (e.g. `'* * * * *'` for every minute) by re-running the
 `cron.unschedule`/`cron.schedule` pair from step 6 with a different
 interval — there's no minimum beyond what your Supabase plan allows.
 
+### Custom reminders (15 min / 30 min / 1 hr / 2 hr / 4 hr / 1 day before)
+
+On top of the fixed 2-hour "due soon" push above, anyone who can see a task
+— the admin, and whoever it's assigned to — can pick their own reminder
+offsets for it:
+
+- **When creating a task**, there's a "Remind before due" row of toggleable
+  chips right under Repeat.
+- **On an existing task**, open it and look for the "Reminders" section
+  (below the action buttons, above Photos/Comments) — toggling a chip there
+  saves or removes it immediately, no separate Save button. This is the only
+  way to set reminders on a task an admin assigned to an employee, since
+  employees can't otherwise edit those tasks at all.
+
+Both sides can add or remove reminders on the same task, and changes show up
+for the other person live, without a refresh. Changing a task's due date or
+time clears any reminders that already fired for it, so they can fire again
+relative to the new deadline. This rides on the same scheduled check and
+5-minute cadence as everything else in this section — it needs the push
+setup above (steps 1–6) already done, or reminders will save fine but never
+actually notify anyone.
+
 ---
 
 ## 16. Error tracking (optional)

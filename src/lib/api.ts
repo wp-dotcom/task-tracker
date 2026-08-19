@@ -13,6 +13,7 @@ import type {
   TaskEvent,
   TaskPhoto,
   TaskRecurrence,
+  TaskReminder,
   TaskTemplate,
   TaskUrgency,
   TaskWithProfiles,
@@ -383,6 +384,50 @@ export async function createTaskComment(
 
 export async function deleteTaskComment(commentId: string): Promise<void> {
   const { error } = await supabase.from('task_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+// ---- Task reminders (configurable "remind me before it's due" offsets) -----
+
+export async function fetchTaskReminders(taskId: string): Promise<TaskReminder[]> {
+  const { data, error } = await supabase
+    .from('task_reminders')
+    .select('*')
+    .eq('task_id', taskId)
+    .order('offset_minutes', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TaskReminder[];
+}
+
+export async function createTaskReminder(
+  taskId: string,
+  offsetMinutes: number,
+  createdBy: string,
+): Promise<TaskReminder> {
+  const { data, error } = await supabase
+    .from('task_reminders')
+    .insert({ task_id: taskId, offset_minutes: offsetMinutes, created_by: createdBy })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as TaskReminder;
+}
+
+/** Bulk-add reminders — used right after creating a new task, for whichever offsets were picked before it had an id. */
+export async function createTaskReminders(
+  taskId: string,
+  offsetsMinutes: number[],
+  createdBy: string,
+): Promise<void> {
+  if (offsetsMinutes.length === 0) return;
+  const { error } = await supabase
+    .from('task_reminders')
+    .insert(offsetsMinutes.map((offset_minutes) => ({ task_id: taskId, offset_minutes, created_by: createdBy })));
+  if (error) throw error;
+}
+
+export async function deleteTaskReminder(reminderId: string): Promise<void> {
+  const { error } = await supabase.from('task_reminders').delete().eq('id', reminderId);
   if (error) throw error;
 }
 

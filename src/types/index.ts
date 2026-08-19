@@ -222,3 +222,12 @@ export interface TaskPhoto {
   created_at: string;
   uploader?: Pick<Profile, 'id' | 'full_name' | 'email'> | null;
 }
+
+/** A "remind me N minutes before it's due" reminder on a task — see task_reminders in schema.sql. */
+export interface TaskReminder {
+  id: string;
+  task_id: string;
+  offset_minutes: number;
+  created_by: string;
+  created_at: string;
+}

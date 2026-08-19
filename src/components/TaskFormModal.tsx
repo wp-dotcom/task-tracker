@@ -14,11 +14,13 @@ import { useEmployees } from '../hooks/useEmployees';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
 import { getErrorMessage } from '../lib/errors';
 import { todayLocalISODate } from '../lib/dates';
+import { createTaskReminders } from '../lib/api';
 import { URGENCY_META, URGENCY_ORDER } from '../lib/urgency';
 import TaskTemplateFormModal from './TaskTemplateFormModal';
 import TimeSelect from './TimeSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Dropdown from './Dropdown';
+import ReminderOffsetPicker from './ReminderOffsetPicker';
 
 interface TaskFormModalProps {
   open: boolean;
@@ -62,6 +64,13 @@ export default function TaskFormModal({
   const [dueTime, setDueTime] = useState('');
   const [urgency, setUrgency] = useState<TaskUrgency>('normal');
   const [repeat, setRepeat] = useState<TaskRecurrenceFrequency | 'none'>('none');
+  // Only used in create mode — there's no task id to attach task_reminders
+  // rows to yet, so these are applied in a follow-up insert right after the
+  // task itself is created (see handleSubmit below). Editing an existing
+  // task manages reminders live via TaskReminders in TaskDetailsModal
+  // instead, since that's reachable for admin-assigned tasks too (this form
+  // isn't — see canEditOrDelete in TaskDetailsModal).
+  const [reminderOffsets, setReminderOffsets] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -139,9 +148,20 @@ export default function TaskFormModal({
       setRepeat('none');
     }
     setSelectedTemplateId('');
+    // Always starts blank, even when editing/duplicating — reminders on an
+    // existing task are managed live via TaskReminders instead (see the
+    // reminderOffsets comment above), and duplicating doesn't copy the
+    // original's reminders.
+    setReminderOffsets([]);
     setError(null);
     setConfirmDiscard(false);
   }, [open, task, duplicateFrom, defaultDate, defaultTime, isAdmin, profile]);
+
+  function toggleReminderOffset(offsetMinutes: number, nextSelected: boolean) {
+    setReminderOffsets((prev) =>
+      nextSelected ? [...prev, offsetMinutes] : prev.filter((m) => m !== offsetMinutes),
+    );
+  }
 
   function applyTemplate(template: TaskTemplate) {
     setTitle(template.title);
@@ -224,6 +244,17 @@ export default function TaskFormModal({
           // Employee just created and is viewing their own task — mark it
           // viewed right away so it doesn't show a confusing "New" badge.
           markViewed(created.id).catch(() => {});
+        }
+        if (reminderOffsets.length > 0 && profile) {
+          // Best-effort: the task itself is already created successfully at
+          // this point, so a reminder-saving failure shouldn't block/undo
+          // that — just let them know the reminders specifically didn't
+          // stick, via a toast, rather than surfacing it as a form error.
+          try {
+            await createTaskReminders(created.id, reminderOffsets, profile.id);
+          } catch {
+            showToast("Task created, but the reminders didn't save — add them from the task's details.");
+          }
         }
         onSaved?.(created.id);
       }
@@ -388,6 +419,17 @@ export default function TaskFormModal({
                     { value: 'monthly', label: 'Monthly (same date)' },
                   ]}
                 />
+              </div>
+            </div>
+          )}
+
+          {!isEdit && (
+            <div className="field-col">
+              <label className="field-label" id="task-reminders-label">
+                Remind before due <span className="field-optional">(optional)</span>
+              </label>
+              <div aria-labelledby="task-reminders-label">
+                <ReminderOffsetPicker value={reminderOffsets} onToggle={toggleReminderOffset} />
               </div>
             </div>
           )}
