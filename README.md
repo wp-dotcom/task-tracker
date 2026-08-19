@@ -799,6 +799,14 @@ app — it always loads the latest live version over the network rather than
 caching pages, so you'll never see a stale version stuck on a home screen
 icon after an update goes out.
 
+Opening it from the home screen also shows a proper launch splash screen
+(the app icon on a matching background) instead of a blank white flash
+while the app loads — iOS needs one exact image per screen size for this,
+which is why `index.html` has a long list of `apple-touch-startup-image`
+tags and `public/splash/` has one PNG per iPhone/iPad size. If the app icon
+or the manifest's background color ever changes, those images need to be
+regenerated to match (see the comment above the tags in `index.html`).
+
 ### Mobile navigation
 
 On a phone-width screen, navigation lives behind a **☰ menu button** in the

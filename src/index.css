@@ -98,12 +98,23 @@
 
 * {
   box-sizing: border-box;
+  /* iOS/Android show a gray flash on every tap by default, which reads as
+     "unstyled webpage" rather than "native app". We use real :active states
+     throughout instead, so the browser's own highlight is just noise. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
 body,
 #root {
   height: 100%;
+}
+
+html {
+  /* Stops the iOS "rubber-band" bounce past the top/bottom of the page from
+     revealing whatever's behind the viewport (a flash of black or the wrong
+     background color) — keeps scrolling feeling contained, like a native app. */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -158,18 +169,30 @@ button {
   justify-content: center;
   gap: 0.4em;
   padding: 0.55em 1.1em;
+  /* Apple HIG's ~44pt minimum tap target — this was previously closer to
+     32px tall, comfortable for a mouse cursor but easy to mis-tap on a
+     touchscreen. */
+  min-height: 44px;
   font-size: 0.9rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease,
+    transform 0.08s ease;
   white-space: nowrap;
 }
 
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* One shared press-state for every .btn variant instead of repeating it
+   per color (primary/secondary/ghost/danger/success) — iOS has no hover to
+   fall back on, so this is what makes a tap actually feel like it landed. */
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .btn-primary {
@@ -320,7 +343,10 @@ button {
 .field-input {
   width: 100%;
   padding: 0.6em 0.75em;
-  font-size: 0.95rem;
+  /* iOS Safari zooms the whole page in when a focused text input/textarea's
+     font-size is under 16px — 1rem here, not the 0.95rem used elsewhere in
+     the app, specifically to stay at that threshold and avoid it. */
+  font-size: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -360,6 +386,10 @@ button {
 
 .dropdown-trigger:hover:not(:disabled) {
   border-color: var(--color-text-faint);
+}
+
+.dropdown-trigger:active:not(:disabled) {
+  background: var(--color-bg);
 }
 
 .dropdown-trigger:focus-visible,
@@ -428,6 +458,10 @@ button {
 
 .dropdown-option.active {
   background: var(--color-bg);
+}
+
+.dropdown-option:active:not(.disabled) {
+  background: var(--color-border);
 }
 
 .dropdown-option.selected {
@@ -1017,6 +1051,15 @@ button {
 .task-card:hover {
   border-color: #c9cdd4;
   box-shadow: var(--shadow-sm);
+}
+
+/* iOS has no hover state (no mouse) — this is what actually gives a tap
+   real feedback on a touchscreen. Only takes effect when swipeEnabled is
+   false (TaskCard.tsx) — when it's true, the inline translateX() style set
+   during a swipe always wins over this transform, which is exactly right:
+   a card already being dragged doesn't need a separate press animation. */
+.task-card:active {
+  transform: scale(0.985);
 }
 
 .task-card-unviewed {
@@ -1674,7 +1717,9 @@ button {
   resize: vertical;
   min-height: 44px;
   font-family: inherit;
-  font-size: 0.9rem;
+  /* Same 16px floor as .field-input, and for the same reason — stops iOS
+     Safari zooming the page in when this is focused. */
+  font-size: 1rem;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 8px);
@@ -2563,6 +2608,7 @@ button {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 44px;
     padding: 10px 10px;
     border-radius: var(--radius-sm);
     color: var(--color-text);
@@ -2574,6 +2620,10 @@ button {
   .mobile-menu-link:hover,
   .mobile-menu-link.active {
     background: var(--color-bg);
+  }
+
+  .mobile-menu-link:active {
+    background: var(--color-border);
   }
 
   .mobile-menu-icon {
