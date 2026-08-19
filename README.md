@@ -620,7 +620,10 @@ public/_redirects
 
 A **Dashboard** page in the admin nav (first item, before Calendar) gives a
 one-stop overview instead of having to piece it together from Calendar and
-Tasks:
+Tasks. It's also the **landing page** for the admin account — logging in, or
+clicking "Mid Haven Furniture" in the top-left, always takes an admin here
+(an employee's brand link still goes to My Tasks, since they have no
+Dashboard page).
 
 - The same **Due today / Overdue / Not viewed / Completed today** tiles
   already shown at the top of the Calendar page.
@@ -628,6 +631,13 @@ Tasks:
   Today / This week / This month / All time, both combined ("All
   employees") and broken out per employee. Useful for spotting workload
   trends over time without digging through the Tasks list filter by filter.
+  **Click any card** for a full breakdown: open/overdue/due-today counts,
+  a per-employee roster on the combined card, and short lists of open and
+  recently-completed tasks — click any task in that list to jump straight
+  to its details.
+- **Upcoming** — the next few open tasks across everyone, soonest deadline
+  first, so you can see what's coming due without scrolling the full Tasks
+  list. Click one to open it directly.
 - The full **Calendar** — the exact same live, interactive month/week/day
   grid as the Calendar page (add a task or appointment, drag to reschedule,
   click through to details), not a read-only preview. Both pages share one

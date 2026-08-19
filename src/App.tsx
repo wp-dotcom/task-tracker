@@ -26,7 +26,7 @@ import ConfigMissingPage from './pages/ConfigMissingPage';
 function HomeRedirect() {
   const { profile } = useAuth();
   if (!profile) return null;
-  return <Navigate to={profile.role === 'admin' ? '/calendar' : '/my-tasks'} replace />;
+  return <Navigate to={profile.role === 'admin' ? '/dashboard' : '/my-tasks'} replace />;
 }
 
 /** /calendar is shared by both roles but shows a different, role-appropriate view. */

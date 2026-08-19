@@ -1046,8 +1046,9 @@ button {
 }
 
 .completion-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
 }
 
@@ -1056,6 +1057,20 @@ button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 14px 16px;
+  flex: 1 1 220px;
+  max-width: 280px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.completion-card:hover,
+.completion-card:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(16, 24, 40, 0.12));
 }
 
 .completion-card-total {
@@ -1584,6 +1599,124 @@ button {
 .task-form {
   display: flex;
   flex-direction: column;
+}
+
+/* =============================================================================
+   Employee breakdown modal (Dashboard "Completed tasks" cards, click-through)
+   ============================================================================= */
+.modal-panel-wide {
+  max-width: 640px;
+}
+
+.breakdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 34px;
+  margin-bottom: 16px;
+}
+
+.breakdown-header h2 {
+  margin: 0;
+}
+
+.breakdown-stats-grid {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 20px;
+}
+
+@media (max-width: 480px) {
+  .breakdown-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.breakdown-section {
+  margin-bottom: 20px;
+}
+
+.breakdown-section h3 {
+  font-size: 0.95rem;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breakdown-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.breakdown-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.breakdown-roster-name {
+  font-weight: 600;
+  flex: 1 1 auto;
+}
+
+.breakdown-roster-stat {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.breakdown-stat-warn {
+  color: var(--color-danger, #d92d20);
+}
+
+.breakdown-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.breakdown-task-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.breakdown-task-row:hover {
+  border-color: var(--color-primary);
+}
+
+.breakdown-task-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdown-task-meta {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.breakdown-more-hint {
+  font-size: 0.8rem;
+  margin: 4px 0 0;
 }
 
 /* =============================================================================

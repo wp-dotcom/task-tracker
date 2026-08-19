@@ -49,8 +49,10 @@ export default function AppLayout() {
   const { tasks } = useTasks();
   const isAdmin = profile?.role === 'admin';
   const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
-  // Where tapping the brand/logo takes you — each role's own task list.
-  const tasksPath = isAdmin ? '/tasks' : '/my-tasks';
+  // Where tapping the brand/logo takes you — the Dashboard for an admin
+  // (their one-stop overview), an employee's own task list otherwise (they
+  // have no Dashboard page).
+  const brandPath = isAdmin ? '/dashboard' : '/my-tasks';
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -172,7 +174,7 @@ export default function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link to={tasksPath} className="sidebar-brand">
+        <Link to={brandPath} className="sidebar-brand">
           Mid Haven Furniture
         </Link>
         <nav className="sidebar-nav">
@@ -235,7 +237,7 @@ export default function AppLayout() {
       </main>
 
       <header className="mobile-topbar">
-        <Link to={tasksPath} className="mobile-topbar-brand">
+        <Link to={brandPath} className="mobile-topbar-brand">
           Mid Haven Furniture
         </Link>
         <button
