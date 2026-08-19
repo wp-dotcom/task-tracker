@@ -129,7 +129,15 @@ export default function Dropdown({
         triggerRef.current?.focus();
       }
     }
-    function handleScroll() {
+    function handleScroll(e: Event) {
+      // Scroll events don't bubble, but a capture-phase listener on window
+      // still sees them fire on any scrolled descendant — including the
+      // listbox itself (e.g. TimeSelect's ~49-option list, which needs to
+      // scroll internally to reach entries past the maxHeight cap). Only
+      // treat this as "the page/an ancestor scrolled out from under us",
+      // not "the user is scrolling to find an option".
+      const target = e.target as Node;
+      if (listRef.current?.contains(target)) return;
       closeDropdown();
     }
     function handleResize() {
