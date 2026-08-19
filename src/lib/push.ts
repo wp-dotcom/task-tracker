@@ -29,7 +29,12 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
 export async function getExistingPushSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported) return null;
-  const registration = await navigator.serviceWorker.ready.catch(() => null);
+  // Register (idempotent — a no-op if already registered) rather than
+  // waiting on navigator.serviceWorker.ready: on a first-ever visit nothing
+  // has registered the worker yet, and .ready never resolves on its own
+  // without an existing registration, so that used to hang the "Checking..."
+  // state forever with no way to reach the Enable button.
+  const registration = await registerServiceWorker();
   if (!registration) return null;
   return registration.pushManager.getSubscription();
 }
