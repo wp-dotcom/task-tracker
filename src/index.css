@@ -102,6 +102,18 @@
      "unstyled webpage" rather than "native app". We use real :active states
      throughout instead, so the browser's own highlight is just noise. */
   -webkit-tap-highlight-color: transparent;
+  /* Hide scrollbar tracks everywhere (the page itself, dropdown lists, the
+     comment list, modals, etc.) without disabling scrolling — it still
+     works fully via touch, trackpad, wheel, or keyboard, just without a
+     visible bar. Firefox/IE-family browsers use this property; Chrome,
+     Safari and Edge (Chromium) need the ::-webkit-scrollbar rule below
+     instead, since they don't support scrollbar-width. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 html,
