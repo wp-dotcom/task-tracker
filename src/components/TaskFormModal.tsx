@@ -350,7 +350,15 @@ export default function TaskFormModal({
                   id="task-assignee"
                   value={assignedTo}
                   onChange={setAssignedTo}
-                  options={employees.map((emp: Profile) => ({ value: emp.id, label: emp.full_name }))}
+                  options={[
+                    // useEmployees() only ever returns role='employee' profiles
+                    // (it's shared with the Employees admin page, where that's
+                    // exactly what's wanted) — so without this, an admin has no
+                    // way to assign a task to themselves. Listed first since
+                    // it's usually the admin's own to-do, not someone else's.
+                    ...(profile ? [{ value: profile.id, label: `${profile.full_name} (you)` }] : []),
+                    ...employees.map((emp: Profile) => ({ value: emp.id, label: emp.full_name })),
+                  ]}
                   placeholder={employeesLoading ? 'Loading...' : 'Select employee'}
                 />
               </div>

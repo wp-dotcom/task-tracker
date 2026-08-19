@@ -315,6 +315,22 @@ create policy profiles_select on public.profiles
   to authenticated
   using (id = auth.uid() or public.is_admin());
 
+-- Additionally, ANY signed-in user (not just admins) may read admin profile
+-- rows specifically — not other employees' rows, just admins'. Without
+-- this, an employee's view of anything an admin authored (a task comment,
+-- an uploaded photo, a task's "created by") can't resolve the admin's name
+-- via the profiles join, and silently falls back to "Unknown" in the UI,
+-- even though the employee is otherwise fully allowed to see that
+-- task/comment/photo itself. Multiple permissive policies for the same
+-- command are OR'd together by Postgres, so this only ever widens
+-- visibility (adds "any admin's row"), never narrows what profiles_select
+-- above already allows.
+drop policy if exists profiles_select_admins on public.profiles;
+create policy profiles_select_admins on public.profiles
+  for select
+  to authenticated
+  using (role = 'admin');
+
 -- Only admins may update profiles (e.g. renaming an employee, promoting to
 -- admin). Regular users cannot self-edit their role.
 drop policy if exists profiles_update_admin on public.profiles;
