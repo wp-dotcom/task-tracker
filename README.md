@@ -428,9 +428,9 @@ immediately.
 This one needs a few more pieces: a keypair so only your server can send
 notifications claiming to be your app (VAPID), and a scheduled job that
 periodically checks for tasks that just became assigned/due-soon/overdue —
-and also notifies admins and employees about each other's activity on a
-task (completed, added, first opened, edited, deleted — see "What admins
-and employees notify each other about" below).
+and, for every admin specifically, whenever an employee completes,
+self-adds, first opens, edits, or deletes a task (see "What admins get
+notified about" below).
 
 1. Generate a VAPID keypair (needs Node):
    ```bash
@@ -518,14 +518,11 @@ them, that's an Apple restriction, not something this app can work around.
 Desktop browsers and Android Chrome support it directly in a normal tab, no
 install required.
 
-### What admins and employees notify each other about
+### What admins get notified about
 
 Every employee gets pushed when a task is assigned to them, coming due
-soon, or overdue — that's the "Push notifications" section above. Beyond
-that, admins and employees also notify each other about activity on a
-task, in whichever direction the action happened:
-
-Every **admin** gets pushed whenever an employee:
+soon, or overdue — that's the "Push notifications" section above. Every
+**admin** additionally gets pushed whenever an employee:
 
 - marks a task **complete**,
 - **adds their own task** (self-added, not one an admin assigned),
@@ -537,15 +534,12 @@ Every **admin** gets pushed whenever an employee:
   notification, not one per field), or
 - **deletes** their own self-added task.
 
-The **employee assigned to a task** gets pushed whenever an admin **edits**
-or **deletes** that task (an admin's own self-added task is exempt, same as
-completing/adding above — you don't need a push about your own action).
-
-None of this generates a push back to whoever performed the action — only
-the other side of the relationship gets notified. This needs no extra
-setup beyond what's already above (same function, same schedule); if you
-have more than one admin account, every admin gets the employee-side
-notifications.
+This is one-directional, employee-to-admin only: an admin completing,
+assigning, editing, or deleting a task themselves doesn't generate a push
+back to themselves, to other admins, or to the employee it's assigned to —
+only employee-performed actions are notification-worthy here. This needs
+no extra setup beyond what's already above (same function, same schedule);
+if you have more than one admin account, every admin gets these.
 
 Since this rides on the same scheduled check as due-soon/overdue, delivery
 timing follows the same cadence — up to a few minutes' delay by default
@@ -1431,7 +1425,5 @@ never a second employee, even via a direct API call.
 - [ ] An employee editing (or deleting) their own self-added task notifies
       the admin exactly once, even if the edit changes several fields at
       once (title, due date, and urgency together, say). An admin editing
-      (or deleting) a task assigned to an employee notifies that employee
-      exactly once. Neither direction produces a notification when the
-      person acting is also the task's own assignee (e.g. an admin editing
-      their own self-added task).
+      or deleting a task — their own, or one assigned to an employee —
+      produces no notification to anyone.

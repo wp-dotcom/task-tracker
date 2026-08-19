@@ -11,9 +11,9 @@
 //
 // It also notifies every admin (schema.sql section 23) when an employee —
 // not an admin — completes a task, adds their own task, views a task for
-// the very first time, edits their own task, or deletes their own task; and
-// notifies the assignee (schema.sql section 24) when an admin edits or
-// deletes a task assigned to them. "admin_overdue" reuses task_push_log the
+// the very first time, edits their own task, or deletes their own task.
+// This direction only: an admin editing or deleting a task never notifies
+// the employee it's assigned to. "admin_overdue" reuses task_push_log the
 // same way as above; everything else keyed off a task_events row
 // (completed/added/first-viewed/edited) is de-duped via admin_push_log,
 // since those can legitimately happen more than once for the same task
@@ -123,9 +123,7 @@ type PushKind =
   | 'admin_added'
   | 'admin_first_viewed'
   | 'admin_task_edited'
-  | 'employee_task_edited'
-  | 'admin_task_deleted'
-  | 'employee_task_deleted';
+  | 'admin_task_deleted';
 
 interface PushJob {
   taskId: string;
@@ -133,12 +131,12 @@ interface PushJob {
   kind: PushKind;
   title: string;
   body: string;
-  // Set for the admin_*/employee_task_edited kinds above (plural since one
-  // edit can fire several task_events rows at once — see the grouping
-  // below) — de-duped per task_events row (admin_push_log) instead of per
+  // Set for the admin_task_edited kind above (plural since one edit can
+  // fire several task_events rows at once — see the grouping below) —
+  // de-duped per task_events row (admin_push_log) instead of per
   // (task_id, kind) like assigned/due_soon/overdue/admin_overdue.
   taskEventIds?: string[];
-  // Set for the *_task_deleted kinds — de-dupe already handled by flipping
+  // Set for admin_task_deleted — de-dupe already handled by flipping
   // task_deletion_log.notified before these jobs are even built, so the
   // send loop below should skip its own dedupe-write for these.
   dedupHandledExternally?: boolean;
@@ -357,31 +355,21 @@ Deno.serve(async (req) => {
       const actor = group.actorId ? profileById.get(group.actorId) : undefined;
       if (!task || !actor) continue;
 
-      if (actor.role === 'employee') {
-        // Only reachable for an employee's own self-added task — that's
-        // the only kind of task an employee can directly edit at all.
-        for (const adminId of adminIds) {
-          jobs.push({
-            taskId: task.id,
-            userId: adminId,
-            kind: 'admin_task_edited',
-            title: 'Task edited',
-            body: `${actor.full_name} edited "${task.title}"`,
-            taskEventIds: group.eventIds,
-          });
-        }
-      } else if (actor.role === 'admin') {
-        const assignee = profileById.get(task.assigned_to);
-        if (assignee && assignee.role === 'employee' && assignee.id !== actor.id) {
-          jobs.push({
-            taskId: task.id,
-            userId: assignee.id,
-            kind: 'employee_task_edited',
-            title: 'Task updated',
-            body: `${actor.full_name} updated "${task.title}"`,
-            taskEventIds: group.eventIds,
-          });
-        }
+      // Only employee-performed edits are notification-worthy here — an
+      // admin editing a task (their own or one they assigned) doesn't
+      // notify anyone, same as completing/adding above. This is also the
+      // only kind of task an employee can directly edit at all (their own
+      // self-added task), so no further ownership check is needed.
+      if (actor.role !== 'employee') continue;
+      for (const adminId of adminIds) {
+        jobs.push({
+          taskId: task.id,
+          userId: adminId,
+          kind: 'admin_task_edited',
+          title: 'Task edited',
+          body: `${actor.full_name} edited "${task.title}"`,
+          taskEventIds: group.eventIds,
+        });
       }
     }
   }
@@ -393,7 +381,7 @@ Deno.serve(async (req) => {
   // task_id can't be written back into task_push_log's FK-checked table.
   const { data: deletions, error: deletionsError } = await admin
     .from('task_deletion_log')
-    .select('id, task_id, title, assigned_to, deleted_by')
+    .select('id, task_id, title, deleted_by')
     .eq('notified', false);
   if (deletionsError) {
     return new Response(JSON.stringify({ error: deletionsError.message }), {
@@ -405,25 +393,17 @@ Deno.serve(async (req) => {
   for (const deletion of deletions ?? []) {
     const actor = deletion.deleted_by ? profileById.get(deletion.deleted_by) : undefined;
 
+    // Only employee-performed deletions are notification-worthy here — an
+    // admin deleting a task (their own or one they assigned) doesn't
+    // notify anyone, same as completing/adding/editing above. This is also
+    // the only kind of task an employee can directly delete at all (their
+    // own self-added task), so no further ownership check is needed.
     if (actor?.role === 'employee') {
-      // Only reachable for an employee deleting their own self-added task.
       for (const adminId of adminIds) {
         jobs.push({
           taskId: deletion.task_id,
           userId: adminId,
           kind: 'admin_task_deleted',
-          title: 'Task deleted',
-          body: `${actor.full_name} deleted "${deletion.title}"`,
-          dedupHandledExternally: true,
-        });
-      }
-    } else if (actor?.role === 'admin') {
-      const assignee = deletion.assigned_to ? profileById.get(deletion.assigned_to) : undefined;
-      if (assignee && assignee.role === 'employee' && assignee.id !== actor.id) {
-        jobs.push({
-          taskId: deletion.task_id,
-          userId: assignee.id,
-          kind: 'employee_task_deleted',
           title: 'Task deleted',
           body: `${actor.full_name} deleted "${deletion.title}"`,
           dedupHandledExternally: true,

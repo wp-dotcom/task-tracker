@@ -631,7 +631,17 @@ button {
 }
 
 .sidebar-user {
-  padding: 0 10px 10px;
+  display: block;
+  padding: 6px 10px;
+  margin: 0 0 4px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar-user:hover {
+  background: var(--color-bg);
 }
 
 .sidebar-user-name {
@@ -2525,7 +2535,16 @@ button {
   }
 
   .mobile-menu-user {
-    padding: 4px 10px 6px;
+    display: block;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .mobile-menu-user:hover {
+    background: var(--color-bg);
   }
 
   .mobile-menu-logout {

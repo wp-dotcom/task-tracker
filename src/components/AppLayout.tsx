@@ -97,10 +97,10 @@ export default function AppLayout() {
             <span className="sidebar-theme-label">Theme</span>
             <ThemeToggle id="sidebar-theme-toggle" />
           </div>
-          <div className="sidebar-user">
+          <Link to="/change-password" className="sidebar-user" title="Change password">
             <div className="sidebar-user-name">{profile?.full_name}</div>
             <div className="sidebar-user-role">{profile?.role === 'admin' ? 'Admin' : 'Employee'}</div>
-          </div>
+          </Link>
           <button type="button" className="btn btn-ghost btn-block" onClick={() => signOut()}>
             Log out
           </button>
@@ -167,12 +167,16 @@ export default function AppLayout() {
               <span className="sidebar-theme-label">Theme</span>
               <ThemeToggle id="mobile-theme-toggle" />
             </div>
-            <div className="mobile-menu-user">
+            <Link
+              to="/change-password"
+              className="mobile-menu-user"
+              onClick={() => setMenuOpen(false)}
+            >
               <div className="sidebar-user-name">{profile?.full_name}</div>
               <div className="sidebar-user-role">
                 {profile?.role === 'admin' ? 'Admin' : 'Employee'}
               </div>
-            </div>
+            </Link>
             <button
               type="button"
               className="mobile-menu-logout"

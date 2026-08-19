@@ -18,6 +18,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import EmployeeMyTasksPage from './pages/EmployeeMyTasksPage';
 import EmployeeCalendarPage from './pages/EmployeeCalendarPage';
 import NotificationsPage from './pages/NotificationsPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ConfigMissingPage from './pages/ConfigMissingPage';
 
@@ -47,6 +48,8 @@ function AuthenticatedApp() {
               <Route path="calendar" element={<CalendarRoute />} />
 
               <Route path="notifications" element={<NotificationsPage />} />
+
+              <Route path="change-password" element={<ChangePasswordPage />} />
 
               <Route
                 path="tasks"

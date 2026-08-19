@@ -1385,9 +1385,9 @@ alter table public.task_push_log
 -- Edits (title/description/assigned_to/due date/time/urgency changes) are
 -- already captured by the 'edited'/'due_date_changed'/'urgency_changed'
 -- task_events rows from section 9 — check-due-tasks now also turns those
--- into a push (to every admin if an employee made the edit, or to the
--- assignee if an admin made it), reusing admin_push_log for de-dupe the
--- same way as section 23.
+-- into a push to every admin, but only when an employee made the edit (an
+-- admin editing a task never notifies anyone, same as completing/adding
+-- above), reusing admin_push_log for de-dupe the same way as section 23.
 --
 -- Deletions need a table of their own: task_events rows are declared
 -- ON DELETE CASCADE from tasks, so they vanish the instant a task is
