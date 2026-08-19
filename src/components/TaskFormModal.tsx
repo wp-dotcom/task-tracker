@@ -181,11 +181,16 @@ export default function TaskFormModal({
     applyTemplate(template);
   }
 
-  // Default the assignee to the (only, in v1) employee once loaded — admins only;
-  // employees are always assigned to themselves (set above).
+  // Default the assignee once the employee list loads — admins only;
+  // employees are always assigned to themselves (set above). Prefers Evan
+  // specifically, since he gets most tasks day-to-day — falls back to
+  // whoever's first alphabetically (fetchEmployees orders by full_name) if
+  // there's no employee named Evan, e.g. right after he's renamed or if
+  // this is a different shop's copy of the app.
   useEffect(() => {
     if (open && isAdmin && !isEdit && !assignedTo && employees.length > 0) {
-      setAssignedTo(employees[0].id);
+      const preferred = employees.find((emp) => emp.full_name.trim().toLowerCase().startsWith('evan'));
+      setAssignedTo((preferred ?? employees[0]).id);
     }
   }, [open, isAdmin, isEdit, assignedTo, employees]);
 
