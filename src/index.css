@@ -881,6 +881,18 @@ button {
   flex-wrap: wrap;
 }
 
+/* AdminTaskCalendarPanel's own "+ Appointment/Delivery" / "+ Add Task" row —
+   sits just above the calendar grid rather than next to a page title, since
+   this panel is reused as-is on both the Calendar page and the Dashboard. */
+.admin-calendar-panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
 .empty-state {
   text-align: center;
   padding: 48px 20px;

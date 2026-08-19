@@ -5,6 +5,7 @@ import { computeCompletionCounts, computeCompletionCountsByEmployee } from '../l
 import { employeeColorSlot, employeeInitials } from '../lib/employeeColors';
 import type { CompletionCounts } from '../lib/completionStats';
 import DashboardSummary from '../components/DashboardSummary';
+import AdminTaskCalendarPanel from '../components/AdminTaskCalendarPanel';
 import { ListSkeleton } from '../components/Skeleton';
 
 function CompletionCard({
@@ -92,6 +93,11 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             )}
+          </section>
+
+          <section className="dashboard-section">
+            <h2 className="dashboard-section-title">Calendar</h2>
+            <AdminTaskCalendarPanel />
           </section>
         </>
       )}

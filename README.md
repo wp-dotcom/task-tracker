@@ -628,6 +628,11 @@ Tasks:
   Today / This week / This month / All time, both combined ("All
   employees") and broken out per employee. Useful for spotting workload
   trends over time without digging through the Tasks list filter by filter.
+- The full **Calendar** — the exact same live, interactive month/week/day
+  grid as the Calendar page (add a task or appointment, drag to reschedule,
+  click through to details), not a read-only preview. Both pages share one
+  underlying component, so anything that works on one works identically on
+  the other.
 
 Everything on it is computed from tasks already loaded elsewhere in the
 app — no extra setup, no new database table, and no wait for a background
