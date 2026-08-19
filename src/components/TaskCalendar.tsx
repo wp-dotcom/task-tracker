@@ -5,13 +5,14 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { DateClickArg } from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
-import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
+import type { CalendarEventWithCreator, Profile, TaskWithProfiles } from '../types';
 import { useTasks } from '../context/TasksContext';
 import { useUrgency } from '../context/UrgencyContext';
 import { formatDueDate, isCalendarEventDueSoon, isTaskDueSoon, toLocalHHMM, toLocalISODate } from '../lib/dates';
 import { useNow } from '../lib/useNow';
 import { getErrorMessage } from '../lib/errors';
 import { CALENDAR_EVENT_META } from '../lib/calendarEventMeta';
+import { employeeColorSlot, employeeInitials } from '../lib/employeeColors';
 import ConfirmDialog from './ConfirmDialog';
 import MobileAgendaCalendar from './MobileAgendaCalendar';
 
@@ -41,6 +42,16 @@ interface TaskCalendarProps {
   onCalendarEventDateClick?: (dateStr: string, timeStr?: string) => void;
   /** Which FullCalendar view to open on. Defaults to the month grid. */
   initialView?: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+  /**
+   * Admin desktop view only: shows a small colored initials badge on each
+   * task event so it's clear at a glance whose task it is, same badge as
+   * the admin Tasks page. Requires `employees` (to pick each assignee's
+   * fixed color slot) — pass both together, or neither. Deliberately not
+   * shown on the mobile agenda view (MobileAgendaCalendar, below) or on the
+   * employee's own calendar (every task there is already theirs).
+   */
+  showAssigneeBadges?: boolean;
+  employees?: Profile[];
 }
 
 interface QuickCreateState {
@@ -84,10 +95,11 @@ function isNarrowScreen(): boolean {
  * The urgency icon (not just the event's colour) is shown next to the
  * title so urgency is never communicated by colour alone. */
 function renderTaskEventContent(arg: EventContentArg) {
-  const { task, urgencyIcon, urgencyLabel } = arg.event.extendedProps as {
+  const { task, urgencyIcon, urgencyLabel, assigneeBadge } = arg.event.extendedProps as {
     task: TaskWithProfiles;
     urgencyIcon: string;
     urgencyLabel: string;
+    assigneeBadge: { initials: string; colorSlot: number; name: string } | null;
   };
   const maxLength = arg.view.type === 'dayGridMonth' ? 40 : 90;
   const descriptionPreview = task.description ? truncate(task.description, maxLength) : '';
@@ -99,6 +111,14 @@ function renderTaskEventContent(arg: EventContentArg) {
         <span className="fc-task-urgency-icon" aria-label={`${urgencyLabel} urgency`} title={`${urgencyLabel} urgency`}>
           {urgencyIcon}
         </span>
+        {assigneeBadge && (
+          <span
+            className={`employee-badge employee-badge-sm employee-badge-${assigneeBadge.colorSlot}`}
+            title={assigneeBadge.name}
+          >
+            {assigneeBadge.initials}
+          </span>
+        )}
         {task.recurrence_id && (
           <span className="fc-task-repeat-icon" aria-label="Repeating task" title="Repeating task">
             ↻
@@ -146,6 +166,8 @@ export default function TaskCalendar({
   onDateClick,
   onCalendarEventDateClick,
   initialView = 'dayGridMonth',
+  showAssigneeBadges = false,
+  employees = [],
 }: TaskCalendarProps) {
   const { rescheduleTask } = useTasks();
   const { urgencyMeta } = useUrgency();
@@ -176,6 +198,14 @@ export default function TaskCalendar({
     const taskEvents = tasks.map((task) => {
       const meta = urgencyMeta[task.urgency];
       const hasTime = Boolean(task.due_time);
+      const assigneeBadge =
+        showAssigneeBadges && task.assignee
+          ? {
+              initials: employeeInitials(task.assignee.full_name),
+              colorSlot: employeeColorSlot(task.assigned_to, employees),
+              name: task.assignee.full_name,
+            }
+          : null;
       return {
         id: `task-${task.id}`,
         title: task.title,
@@ -191,7 +221,7 @@ export default function TaskCalendar({
           !task.first_viewed_at && task.status !== 'completed' ? 'fc-task-unviewed' : '',
           isTaskDueSoon(task, now) ? 'fc-task-due-soon' : '',
         ].filter(Boolean),
-        extendedProps: { kind: 'task' as const, task, urgencyIcon: meta.icon, urgencyLabel: meta.label },
+        extendedProps: { kind: 'task' as const, task, urgencyIcon: meta.icon, urgencyLabel: meta.label, assigneeBadge },
       };
     });
 
@@ -221,7 +251,7 @@ export default function TaskCalendar({
     });
 
     return [...taskEvents, ...calEvents];
-  }, [tasks, calendarEvents, urgencyMeta, now]);
+  }, [tasks, calendarEvents, urgencyMeta, now, showAssigneeBadges, employees]);
 
   function handleEventClick(arg: EventClickArg) {
     const kind = arg.event.extendedProps.kind as 'task' | 'calendar_event';

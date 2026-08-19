@@ -616,6 +616,25 @@ public/_redirects
 .env.example
 ```
 
+## Admin Dashboard
+
+A **Dashboard** page in the admin nav (first item, before Calendar) gives a
+one-stop overview instead of having to piece it together from Calendar and
+Tasks:
+
+- The same **Due today / Overdue / Not viewed / Completed today** tiles
+  already shown at the top of the Calendar page.
+- **Completed tasks** — how many tasks have been marked complete, shown as
+  Today / This week / This month / All time, both combined ("All
+  employees") and broken out per employee. Useful for spotting workload
+  trends over time without digging through the Tasks list filter by filter.
+
+Everything on it is computed from tasks already loaded elsewhere in the
+app — no extra setup, no new database table, and no wait for a background
+job. "This week" uses the same Sunday–Saturday week as the rest of the app
+(e.g. My Tasks' day-by-day breakdown); "This month" is the current calendar
+month.
+
 ## Task presets
 
 Open **Templates** in the admin nav to save commonly-assigned tasks (title,
@@ -674,6 +693,23 @@ title (the same icon used in the Urgency badge elsewhere in the app), and
 Urgent/High tasks get a visibly thicker left accent bar than Normal/Low.
 Completed tasks are shown in neutral gray regardless of urgency, since
 they no longer need to stand out.
+
+## Whose task is it? (employee badges)
+
+On the admin's **Tasks** list and the desktop **Calendar** (month/week/day
+grid, not the mobile agenda view), every task shows a small colored circle
+with the assignee's initials — Bryan's tasks always get the same color,
+Evan's always get a different one, and so on, so you can tell at a glance
+who's on what without reading every name. It's a supplement to the text, not
+a replacement: the full name is still shown too (next to the badge on Tasks,
+in the badge's tooltip and the calendar event's own text on Calendar), so
+nothing depends on color alone.
+
+Each employee's color comes from a fixed set of 8 and is assigned in the
+order their account was created — renaming someone never changes their
+color, and a new hire just gets appended at the end. With more than 8
+employees the colors start repeating; the initials and name keep things
+unambiguous either way.
 
 ## Unviewed tasks
 

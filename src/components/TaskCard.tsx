@@ -8,6 +8,7 @@ import { useTasks } from '../context/TasksContext';
 import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../lib/errors';
 import { playCompletionSound } from '../lib/completionEffects';
+import { employeeInitials } from '../lib/employeeColors';
 import UrgencyBadge from './UrgencyBadge';
 import ConfirmDialog from './ConfirmDialog';
 import CompletionBurst from './CompletionBurst';
@@ -16,6 +17,11 @@ interface TaskCardProps {
   task: TaskWithProfiles;
   onClick: () => void;
   showAssignee?: boolean;
+  /** Which of the 8 fixed badge colors (src/index.css --employee-color-1..8)
+   * to use for the assignee badge — computed by the parent from its own
+   * employees list via employeeColorSlot(), since this card doesn't have
+   * that full list itself. Only relevant when showAssignee is true. */
+  assigneeColorSlot?: number;
   /** Bulk-select mode (Admin Tasks page): shows a checkbox and swallows the
    * click into onToggleSelect instead of opening details. Swipe actions are
    * disabled while this is on, so the two gestures never fight each other. */
@@ -32,6 +38,7 @@ export default function TaskCard({
   task,
   onClick,
   showAssignee = false,
+  assigneeColorSlot = 0,
   selectable = false,
   selected = false,
   onToggleSelect,
@@ -228,6 +235,14 @@ export default function TaskCard({
           </span>
         </div>
         <div className="task-card-side">
+          {showAssignee && task.assignee && (
+            <span
+              className={`employee-badge employee-badge-${assigneeColorSlot}`}
+              title={task.assignee.full_name}
+            >
+              {employeeInitials(task.assignee.full_name)}
+            </span>
+          )}
           {overdue && !completed && <span className="overdue-pill">Overdue</span>}
           {dueSoon && <span className="due-soon-pill">Due soon</span>}
           {unviewed && <span className="new-pill">New</span>}

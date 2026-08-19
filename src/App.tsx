@@ -11,6 +11,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import AdminCalendarPage from './pages/AdminCalendarPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminTasksPage from './pages/AdminTasksPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminTemplatesPage from './pages/AdminTemplatesPage';
@@ -46,6 +47,15 @@ function AuthenticatedApp() {
               <Route index element={<HomeRedirect />} />
 
               <Route path="calendar" element={<CalendarRoute />} />
+
+              <Route
+                path="dashboard"
+                element={
+                  <RoleRoute allow={['admin']}>
+                    <AdminDashboardPage />
+                  </RoleRoute>
+                }
+              />
 
               <Route path="notifications" element={<NotificationsPage />} />
 

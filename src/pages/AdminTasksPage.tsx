@@ -8,7 +8,8 @@ import { getErrorMessage } from '../lib/errors';
 import { playCompletionSound } from '../lib/completionEffects';
 import { isTaskDueToday, isTaskOverdue } from '../lib/dates';
 import { buildDayBuckets, buildFutureWeekBuckets, byUrgencyThenDate } from '../lib/taskGrouping';
-import type { TaskListFilter, TaskWithProfiles } from '../types';
+import { employeeColorSlot } from '../lib/employeeColors';
+import type { Profile, TaskListFilter, TaskWithProfiles } from '../types';
 import TaskCard from '../components/TaskCard';
 import TaskFilterBar from '../components/TaskFilterBar';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -261,6 +262,7 @@ export default function AdminTasksPage() {
               selectMode={selectMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelected}
+              employees={employees}
             />
           )}
 
@@ -272,6 +274,7 @@ export default function AdminTasksPage() {
               selectMode={selectMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelected}
+              employees={employees}
             />
           )}
 
@@ -288,6 +291,7 @@ export default function AdminTasksPage() {
                     selectMode={selectMode}
                     selectedIds={selectedIds}
                     onToggleSelect={toggleSelected}
+                    employees={employees}
                   />
                 ))}
             </div>
@@ -304,6 +308,7 @@ export default function AdminTasksPage() {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelected}
+                employees={employees}
               />
             ))}
 
@@ -315,6 +320,7 @@ export default function AdminTasksPage() {
               selectMode={selectMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelected}
+              employees={employees}
             />
           )}
 
@@ -326,6 +332,7 @@ export default function AdminTasksPage() {
               selectMode={selectMode}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelected}
+              employees={employees}
               muted
             />
           )}
@@ -400,6 +407,7 @@ function AdminTaskSection({
   selectMode,
   selectedIds,
   onToggleSelect,
+  employees,
   muted = false,
 }: {
   title: string;
@@ -408,6 +416,7 @@ function AdminTaskSection({
   selectMode: boolean;
   selectedIds: Set<string>;
   onToggleSelect: (taskId: string) => void;
+  employees: Profile[];
   muted?: boolean;
 }) {
   return (
@@ -422,6 +431,7 @@ function AdminTaskSection({
             task={task}
             onClick={() => onSelect(task)}
             showAssignee
+            assigneeColorSlot={employeeColorSlot(task.assigned_to, employees)}
             selectable={selectMode}
             selected={selectedIds.has(task.id)}
             onToggleSelect={() => onToggleSelect(task.id)}

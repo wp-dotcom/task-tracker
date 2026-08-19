@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTasks } from '../context/TasksContext';
 import { useCalendarEvents } from '../context/CalendarEventsContext';
+import { useEmployees } from '../hooks/useEmployees';
 import TaskCalendar from '../components/TaskCalendar';
 import TaskFormModal from '../components/TaskFormModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -13,6 +14,7 @@ import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
 export default function AdminCalendarPage() {
   const { tasks, loading, error } = useTasks();
   const { calendarEvents, error: calendarEventsError } = useCalendarEvents();
+  const { employees } = useEmployees();
   const [formOpen, setFormOpen] = useState(false);
   const [formDefaultDate, setFormDefaultDate] = useState<string | undefined>(undefined);
   const [formDefaultTime, setFormDefaultTime] = useState<string | undefined>(undefined);
@@ -74,6 +76,8 @@ export default function AdminCalendarPage() {
           onSelectCalendarEvent={setSelectedCalendarEvent}
           onDateClick={(dateStr, timeStr) => openAddTask(dateStr, timeStr)}
           onCalendarEventDateClick={(dateStr, timeStr) => openAddCalendarEvent(dateStr, timeStr)}
+          showAssigneeBadges
+          employees={employees}
         />
       )}
 

@@ -51,6 +51,18 @@
    (banners, active nav link) get their own dark overrides further down. */
 :root[data-theme='light'] {
   color-scheme: light;
+  /* Fixed 8-slot categorical palette for "which employee" badges (Tasks
+     list + desktop calendar) — see src/lib/employeeColors.ts for how a
+     given employee is assigned one of these slots. Same hue order in both
+     themes; only the exact steps change for the dark surface below. */
+  --employee-color-1: #2a78d6;
+  --employee-color-2: #eb6834;
+  --employee-color-3: #1baf7a;
+  --employee-color-4: #eda100;
+  --employee-color-5: #e87ba4;
+  --employee-color-6: #008300;
+  --employee-color-7: #4a3aa7;
+  --employee-color-8: #e34948;
 }
 
 :root[data-theme='dark'] {
@@ -74,6 +86,16 @@
   --color-due-soon-accent-bg: #3a2c0f;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+  /* Same 8 hues, stepped for the dark surface — see the light block above. */
+  --employee-color-1: #3987e5;
+  --employee-color-2: #d95926;
+  --employee-color-3: #199e70;
+  --employee-color-4: #c98500;
+  --employee-color-5: #d55181;
+  --employee-color-6: #008300;
+  --employee-color-7: #9085e9;
+  --employee-color-8: #e66767;
 
   /* FullCalendar ships its own theme via these CSS custom properties, so
      the calendar grid follows dark mode too instead of staying a bright
@@ -993,6 +1015,106 @@ button {
 .summary-stat-good .summary-value {
   color: var(--color-success);
 }
+
+/* =============================================================================
+   Dashboard: completed-task analytics (per employee + combined)
+   ============================================================================= */
+.dashboard-section {
+  margin-top: 28px;
+}
+
+.dashboard-section-title {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
+}
+
+.dashboard-section-hint {
+  font-size: 0.85rem;
+  margin: 0 0 14px;
+}
+
+.completion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.completion-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.completion-card-total {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.completion-card-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.completion-card-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.completion-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.completion-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.completion-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+/* =============================================================================
+   Employee badge — small colored initials tag showing whose task this is
+   (admin Tasks page + desktop calendar). See src/lib/employeeColors.ts for
+   how a given employee is assigned one of the 8 numbered slots below.
+   ============================================================================= */
+.employee-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  /* Readable on every slot color without needing a per-slot text color. */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
+.employee-badge-sm {
+  width: 16px;
+  height: 16px;
+  font-size: 0.55rem;
+}
+
+.employee-badge-0 { background: var(--employee-color-1); }
+.employee-badge-1 { background: var(--employee-color-2); }
+.employee-badge-2 { background: var(--employee-color-3); }
+.employee-badge-3 { background: var(--employee-color-4); }
+.employee-badge-4 { background: var(--employee-color-5); }
+.employee-badge-5 { background: var(--employee-color-6); }
+.employee-badge-6 { background: var(--employee-color-7); }
+.employee-badge-7 { background: var(--employee-color-8); }
 
 /* =============================================================================
    Urgency badge + status pills

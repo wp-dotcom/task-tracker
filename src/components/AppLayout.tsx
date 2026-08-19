@@ -15,6 +15,7 @@ interface NavItem {
 }
 
 const ADMIN_NAV: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/calendar', label: 'Calendar' },
   { to: '/tasks', label: 'Tasks' },
   { to: '/employees', label: 'Employees' },
