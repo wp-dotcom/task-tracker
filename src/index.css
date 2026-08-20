@@ -1059,6 +1059,12 @@ button {
 
 .dashboard-columns .dashboard-section {
   margin-top: 0;
+  /* Grid items default to a content-based automatic minimum width, which
+     ignores the track's 1fr sizing when the content inside (a task-card row
+     with several non-shrinking badges/pills) is wider than the column —
+     without this, that content forces the whole column, and the page,
+     wider than the viewport instead of letting titles ellipsis as usual. */
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
