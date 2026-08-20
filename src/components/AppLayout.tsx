@@ -141,11 +141,18 @@ export default function AppLayout() {
     return () => clearTimeout(timer);
   }, [pageSwipeExiting, navigate]);
 
-  // Unviewed, still-open tasks — the whole point of "New" is that the
-  // employee hasn't looked at it yet, so completed tasks don't count.
+  // Unviewed, still-open tasks assigned TO this employee — the whole point
+  // of "New" is that the employee hasn't looked at it yet, so completed
+  // tasks don't count. Explicitly scoped to assigned_to (rather than
+  // trusting every task in context to already be "theirs", which used to
+  // be a safe assumption): an employee can now also see tasks they created
+  // for a coworker (see tasks_select in schema.sql), and those aren't
+  // waiting on this employee to view them.
   const unviewedCount = useMemo(
-    () => tasks.filter((t) => t.status === 'open' && !t.first_viewed_at).length,
-    [tasks],
+    () =>
+      tasks.filter((t) => t.status === 'open' && !t.first_viewed_at && t.assigned_to === profile?.id)
+        .length,
+    [tasks, profile?.id],
   );
 
   // Surface new tasks even when the browser tab isn't focused, so the

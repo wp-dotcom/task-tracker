@@ -521,25 +521,34 @@ install required.
 ### What admins get notified about
 
 Every employee gets pushed when a task is assigned to them, coming due
-soon, or overdue — that's the "Push notifications" section above. Every
+soon, or overdue — that's the "Push notifications" section above. That
+"assigned" push also names who assigned it whenever it wasn't the employee
+themselves (e.g. "Evan assigned you: Sand the oak table"), so a tagged
+coworker knows at a glance who to ask about it — a plain admin-assigned
+task keeps the simple title-only notification it's always had. Every
 **admin** additionally gets pushed whenever an employee:
 
 - marks a task **complete**,
-- **adds their own task** (self-added, not one an admin assigned),
+- **adds a task** — whether it's for themselves or tagged to a coworker
+  (the notification names who it's for when it's not the employee
+  themselves, e.g. `Evan added "Sand the oak table" for Bryan`),
 - **opens a task for the very first time** (not every time they reopen it —
   just the first, same moment "Not viewed yet" flips to a real timestamp in
   the task details),
-- **edits** their own self-added task (title, description, due date/time,
-  or urgency — changing several fields in one save is still just one
+- **edits** a task they created (title, description, due date/time, or
+  urgency — changing several fields in one save is still just one
   notification, not one per field), or
-- **deletes** their own self-added task.
+- **deletes** a task they created.
 
-This is one-directional, employee-to-admin only: an admin completing,
-assigning, editing, or deleting a task themselves doesn't generate a push
-back to themselves, to other admins, or to the employee it's assigned to —
-only employee-performed actions are notification-worthy here. This needs
-no extra setup beyond what's already above (same function, same schedule);
-if you have more than one admin account, every admin gets these.
+The last two apply to any task the employee created, whether it's
+self-added or tagged to a coworker — see "Employees adding tasks (and
+tagging coworkers)" below. This is one-directional, employee-to-admin
+only: an admin completing, assigning, editing, or deleting a task
+themselves doesn't generate a push back to themselves, to other admins, or
+to the employee it's assigned to — only employee-performed actions are
+notification-worthy here. This needs no extra setup beyond what's already
+above (same function, same schedule); if you have more than one admin
+account, every admin gets these.
 
 Since this rides on the same scheduled check as due-soon/overdue, delivery
 timing follows the same cadence — up to a few minutes' delay by default
@@ -785,7 +794,7 @@ three do the same thing everywhere in the app.
 
 ## Opening a form doesn't pop the keyboard
 
-Opening **Add Task**, **Add my task**, **Add appointment or delivery**, or
+Opening **Add Task**, **Add appointment or delivery**, or
 **New preset** moves focus into the pop-up so keyboard/screen-reader users
 land inside it right away, but it doesn't put the cursor directly into the
 Title field — that would trigger the on-screen keyboard the instant the form
@@ -941,30 +950,48 @@ shared calendar:
   the unviewed-task purple, so they read as "shared info" rather than "a
   task for me."
 
-## Employees adding their own tasks
+## Employees adding tasks (and tagging coworkers)
 
 An employee isn't limited to tasks the admin assigns them — they can add
 their own personal to-dos too, right alongside admin-assigned tasks on the
-same calendar and task list:
+same calendar and task list. And they're not limited to tasks for
+themselves either: the same "Assigned to" picker an admin uses is also
+available to employees, so an employee can tag a coworker — or the admin —
+on a task they're creating, the same way an admin assigns work.
 
 - On the employee's Calendar page, click **+ Add Task** — or click directly
   on a day/time slot the same way you'd add an appointment/delivery; since
   employees can now create both tasks and appointments/deliveries, clicking
   a day/time shows the same small chooser popover an admin sees.
 - On the employee's **My Tasks** page, click **+ Add Task** at the top.
-- Either way, the form is simplified for a self-added task: there's no
-  "Assigned to" picker (it's automatically you) and no preset/template
-  picker — just a title, optional notes, urgency, due date, and optional
-  time.
-- A self-added task behaves exactly like any other task on your list — mark
-  it **Complete**, **Reopen** it, and it shows up in the Overdue/Today/day-by-
-  day/future-week/Completed sections the same way. You can also edit or delete
-  a task you added yourself (unlike an admin-assigned task, which only the
-  admin can edit or delete).
-- The admin sees every self-added task too, labeled **"Self-added by
-  {name}"** instead of "Assigned to {name}", so it's always clear at a
-  glance which tasks the admin assigned versus which ones an employee added
-  for themselves.
+- The form has an **"Assigned to"** picker, listing yourself first (labeled
+  "(you)"), then every admin (labeled "(admin)"), then every fellow
+  employee — pick whoever the task is actually for. It defaults to
+  yourself, so leaving it alone still creates a quick personal to-do the
+  same as before; there's still no preset/template picker for
+  employee-created tasks.
+- A task you assign to yourself behaves exactly like any other task on
+  your list — mark it **Complete**, **Reopen** it, and it shows up in the
+  Overdue/Today/day-by-day/future-week/Completed sections the same way.
+- A task you tag a coworker (or the admin) on doesn't show up in your own
+  Overdue/Today/etc. sections — it's not yours to do — but appears instead
+  in a separate **"Assigned by you"** section further down My Tasks, with
+  the same colored assignee badge the admin's Tasks list uses, so you can
+  keep track of what you've delegated without it cluttering your own
+  to-do list.
+- **Whoever created a task can edit or delete it** — that includes a task
+  you tagged a coworker with, the same way it's always worked for a task
+  you added for yourself. The person it's assigned to (if that's not you)
+  can mark it complete/reopen it and comment/add photos/set reminders on
+  it, but can't edit its title, due date, urgency, or delete it — only its
+  creator or an admin can.
+- The person a task is tagged to gets notified the normal way (see "Push
+  notifications" above) — the notification names who assigned it to them
+  when it wasn't an admin.
+- The admin sees every employee-created task too — self-added ones are
+  labeled **"Self-added by {name}"**, and tagged ones are labeled
+  **"Assigned to {assignee} by {creator}"** — so it's always clear at a
+  glance who created a task versus who it's actually for.
 
 ## Recurring tasks
 
@@ -1161,24 +1188,32 @@ schema change) rather than something to rely on happening by itself.
   through explicit policies — nothing is accessible by default.
 - Admins are identified by an `is_admin()` SQL function (checked against
   `profiles.role`), used throughout the policies.
-- Employees get a `SELECT` policy scoped to `assigned_to = auth.uid()` — they
-  can only ever see their own tasks.
-- Employees have **no UPDATE (or INSERT/DELETE) policy on tasks an admin
-  assigned to them.** The only way an employee can change the state of an
-  admin-assigned task is by calling one of three narrowly scoped Postgres
+- Employees get a `SELECT` policy scoped to `assigned_to = auth.uid() or
+  created_by = auth.uid()` — they can see tasks assigned to them, plus any
+  task they created themselves even if it's tagged to a coworker instead
+  (see "Employees adding tasks (and tagging coworkers)" above). The
+  `created_by` half of this exists because Supabase's insert-then-read-back
+  pattern requires it — without it, an employee couldn't even see the row
+  they just created for someone else.
+- Employees have **no UPDATE (or INSERT/DELETE) policy on a task assigned to
+  them that they didn't create** — whether it was assigned by an admin or
+  tagged to them by a coworker. The only way an employee can change the
+  state of such a task is by calling one of three narrowly scoped Postgres
   functions — `mark_task_viewed`, `complete_task`, `reopen_task` — each of
   which independently re-checks `auth.uid()` against the task's
   `assigned_to` before touching anything, and only ever writes to the
   specific viewing/completion columns using the database's own clock
   (`now()`), never a value passed in from the browser.
-- The one exception is a **self-created task** — one an employee added for
-  themselves, rather than one an admin assigned. The database recognizes
-  this by a simple rule: `created_by` and `assigned_to` are both the
-  employee's own id. Only under that exact condition can an employee
+- The exception is **any task an employee created** — whether it's
+  self-added or tagged to a coworker (or the admin). The database
+  recognizes this by a simple rule: `created_by` is the employee's own id,
+  regardless of `assigned_to`. Only under that condition can an employee
   `INSERT`, `UPDATE`, or `DELETE` a task directly — and the `WITH CHECK`
-  clause on the UPDATE policy re-enforces the same rule on every edit, so an
-  employee can never use it to reassign a task to someone else or "adopt"
-  a task an admin assigned them.
+  clause on the UPDATE policy re-enforces the same rule on every edit, so
+  an employee can never use it to "adopt" (change `created_by` on) a task
+  someone else created. `created_by` itself is additionally locked
+  immutable by a trigger, for everyone including admins, once a task is
+  created.
 - `task_events` (the activity log) has no INSERT policy for regular users at
   all — every row is written either by a trigger on `tasks` or from inside
   the SECURITY DEFINER functions above, so it can't be forged by a client.
@@ -1194,9 +1229,9 @@ schema change) rather than something to rely on happening by itself.
   as `tasks` stops anyone — even the creator — from rewriting `id`,
   `created_by`, or `created_at` after the fact.
 - `task_recurrences` (the repeating-task definitions) follows the exact same
-  admin-or-self rule as `tasks`: an admin can start a recurrence assigned to
-  anyone, an employee can only start one assigned to themselves, and only
-  the recurrence's own creator or an admin can update or stop it. The
+  creator-based rule as `tasks`: an admin or an employee can start a
+  recurrence assigned to anyone (including a tagged coworker), and only the
+  recurrence's own creator or an admin can update or stop it. The
   occurrences it generates are ordinary `tasks` rows, so once created they're
   governed entirely by the `tasks` policies above — a recurrence doesn't
   grant any special access to the tasks it produces.
@@ -1208,16 +1243,27 @@ schema change) rather than something to rely on happening by itself.
   double-checks the caller is the recurrence's creator or an admin before
   touching anything, the same pattern as `complete_task`/`reopen_task`.
 - `task_comments` and `task_photos` share a `can_access_task()` helper
-  (same pattern as `is_admin()`) that returns true for an admin or for the
-  task's own assignee — both tables' `SELECT`/`INSERT` policies are built
-  on it, so a note or photo is only ever visible to the two people who can
-  already see the task itself, never a coworker. Deleting a note is
-  restricted to its author or an admin; deleting a photo (and its
-  underlying Storage object) is restricted to its uploader or an admin.
-  The `task-photos` Storage bucket's own policies re-derive the task id
-  from the upload path (`<task_id>/<random>.<ext>`) and apply the exact
-  same `can_access_task()` check, so Storage-level access matches the
-  database-level access rather than being a separate, looser gate.
+  (same pattern as `is_admin()`) that returns true for an admin, the
+  task's assignee, or the task's creator — both tables' `SELECT`/`INSERT`
+  policies are built on it, so a note or photo is only ever visible to the
+  people who can already see the task itself (which, for a tagged task,
+  is now three people rather than two), never an uninvolved coworker.
+  Deleting a note is restricted to its author or an admin; deleting a
+  photo (and its underlying Storage object) is restricted to its uploader
+  or an admin. The `task-photos` Storage bucket's own policies re-derive
+  the task id from the upload path (`<task_id>/<random>.<ext>`) and apply
+  the exact same `can_access_task()` check, so Storage-level access
+  matches the database-level access rather than being a separate, looser
+  gate.
+- `profiles` is readable more broadly than most tables here: any
+  authenticated user can read any admin's row and any employee's row
+  (`profiles_select_admins` / `profiles_select_employees`), on top of
+  always being able to read their own. This is what lets the "Assigned
+  to" picker offer the full roster to an employee, and what resolves a
+  coworker's name anywhere the UI shows one (assignee, creator, a
+  comment's author, a photo's uploader) instead of falling back to
+  "Unknown." Nobody can `INSERT`/`UPDATE`/`DELETE` any profile but their
+  own, and even then not their own `role`.
 - `push_subscriptions` (Web Push registrations) has one `FOR ALL` policy
   scoped to `user_id = auth.uid()` — you can only ever see/add/remove your
   own device registrations, and there's deliberately no admin carve-out;
@@ -1240,23 +1286,26 @@ schema change) rather than something to rely on happening by itself.
 
 This has been tested directly against Postgres with RLS enabled (not just
 through the app) — including confirming that an employee's direct
-`UPDATE`/`INSERT`/`DELETE` attempts against an **admin-assigned** task are
-rejected or silently affect zero rows, that a second employee cannot see or
-act on a task assigned to someone else, that one employee cannot edit or
-delete another employee's appointment/delivery (nor post one under a false
-name), that the admin can still manage any calendar entry regardless of who
-created it, that an employee *can* create/edit/complete/delete their own
-self-created task, that they cannot use that same path to spoof
-`created_by`, assign a self-created task to someone else, or touch an
-admin-assigned task, that the admin can see and correctly label every
-self-created task, that an employee cannot see or start a recurrence
-assigned to a coworker, that generated occurrences land on the right dates
-for daily/weekly/monthly/weekday recurrences (including month-end dates like
+`UPDATE`/`INSERT`/`DELETE` attempts against a task assigned to them that
+they didn't create (whether admin-assigned or tagged by a coworker) are
+rejected or silently affect zero rows, that a second, uninvolved employee
+cannot see or act on a task assigned to (or created by) someone else, that
+one employee cannot edit or delete another employee's appointment/delivery
+(nor post one under a false name), that the admin can still manage any
+calendar entry regardless of who created it, that an employee *can*
+create/edit/complete/delete any task they created — self-added or tagged
+to a coworker or the admin — that they cannot use that same path to spoof
+`created_by`, "adopt" a task someone else created, or touch a task assigned
+to them that they didn't create, that the admin can see and correctly
+label every employee-created task (self-added vs. tagged, and to whom),
+that an employee cannot see or start a recurrence created by a coworker,
+that generated occurrences land on the right dates for
+daily/weekly/monthly/weekday recurrences (including month-end dates like
 starting on the 31st, and a weekday-only series that starts on a weekend),
 and that stopping a recurrence removes its upcoming open occurrences while
 preserving completed ones as history, and that a note or photo posted on a
-task is only ever visible/deletable to that task's assignee and the admin —
-never a second employee, even via a direct API call.
+task is only ever visible/deletable to that task's assignee, creator, and
+the admin — never an uninvolved coworker, even via a direct API call.
 
 ## Test checklist
 
@@ -1343,23 +1392,33 @@ never a second employee, even via a direct API call.
       elsewhere or pressing Esc dismisses the chooser without creating
       anything.
 - [ ] As an employee, clicking **+ Add Task** on the Calendar page or **+ Add
-      Task** on My Tasks opens a simplified Add Task form — titled "Add my
-      task", with no "Assigned to" picker and no preset picker.
-- [ ] Saving that form creates a task assigned to yourself; it appears
-      immediately on your calendar and in My Tasks, already marked as
-      viewed (no "New" pill).
-- [ ] You can Mark Complete, Reopen, Edit, and Delete a task you added
+      Task** on My Tasks opens an Add Task form with an "Assigned to"
+      picker (defaulting to yourself, labeled "(you)"), listing every
+      admin and fellow employee too, and no preset picker.
+- [ ] Leaving "Assigned to" on yourself and saving creates a task assigned
+      to yourself; it appears immediately on your calendar and in My
+      Tasks, already marked as viewed (no "New" pill).
+- [ ] You can Mark Complete, Reopen, Edit, and Delete a task you added for
       yourself, the same as an admin can for any task.
-- [ ] Opening an admin-assigned task as the employee it's assigned to shows
-      **no** Edit/Delete buttons (only Mark Complete/Reopen) — only a
-      self-added task gets Edit/Delete.
-- [ ] The admin sees a self-added employee task on their Calendar and Tasks
-      list; opening it shows "Self-added by {employee name}" instead of
-      "Assigned to {employee name}", and the admin can also edit/delete/
-      complete it like any other task.
-- [ ] A second employee cannot see the first employee's self-added task
-      anywhere (not on their calendar, not via a direct link) — only the
-      admin and the employee who added it can see it.
+- [ ] Picking a coworker (or the admin) in "Assigned to" and saving creates
+      a task that does **not** appear in your own Overdue/Today/etc.
+      sections, but does appear in a new **"Assigned by you"** section
+      further down My Tasks, with that person's colored badge.
+- [ ] The tagged coworker gets the task on their own calendar/My Tasks, with
+      a "New" pill and (if push notifications are set up) a push naming who
+      assigned it — e.g. "Evan assigned you: ...".
+- [ ] Opening a task assigned to you that you didn't create (whether
+      admin-assigned or tagged by a coworker) shows **no** Edit/Delete
+      buttons (only Mark Complete/Reopen) — only a task you created gets
+      Edit/Delete, including one you tagged to someone else.
+- [ ] The admin sees every employee-created task on their Calendar and Tasks
+      list; opening a self-added one shows "Self-added by {employee name}",
+      and opening a tagged one shows "Assigned to {assignee} by {creator}" —
+      the admin can edit/delete/complete any of them like any other task.
+- [ ] A second, uninvolved employee cannot see another employee's
+      self-added task, nor a task tagged between two other people, anywhere
+      (not on their calendar, not via a direct link) — only the admin, the
+      task's creator, and its assignee can see it.
 - [ ] Adding a task with **Repeat: Daily** creates today's task immediately,
       and it (or its ↻ icon) is visible right away on the calendar and in
       the task list.
@@ -1442,7 +1501,7 @@ never a second employee, even via a direct API call.
 - [ ] Typing into the Add/Edit Task form, then clicking Close (or the
       overlay, or pressing Esc) prompts "Discard changes?"; closing an
       untouched form does not prompt.
-- [ ] On a phone, opening **Add Task**/**Add my task**/**Add appointment or
+- [ ] On a phone, opening **Add Task**/**Add appointment or
       delivery**/**New preset** does not pop the on-screen keyboard — the
       Title field shows its placeholder text, unfocused, until you tap it.
 - [ ] Clicking **Reset to defaults** on Settings prompts for confirmation
@@ -1537,17 +1596,22 @@ never a second employee, even via a direct API call.
       on its own, and the JSON contains every person, task, appointment,
       preset, and recurring series currently in the app.
 - [ ] With an admin's device enabled for push notifications, an employee
-      completing a task, an employee adding their own task, an employee
-      opening a task for the first time, and a task assigned to an employee
-      going overdue each produce exactly one notification to the admin —
-      opening that same task again later produces no further notification,
-      and an admin completing/assigning/viewing a task themselves does not
-      produce one either.
-- [ ] An employee editing (or deleting) their own self-added task notifies
-      the admin exactly once, even if the edit changes several fields at
-      once (title, due date, and urgency together, say). An admin editing
-      or deleting a task — their own, or one assigned to an employee —
-      produces no notification to anyone.
+      completing a task, an employee adding a task (for themselves or
+      tagged to a coworker), an employee opening a task for the first
+      time, and a task assigned to an employee going overdue each produce
+      exactly one notification to the admin — opening that same task again
+      later produces no further notification, and an admin
+      completing/assigning/viewing a task themselves does not produce one
+      either. The "task added" notification names the assignee when it's
+      not the employee themselves.
+- [ ] An employee editing (or deleting) a task they created — self-added or
+      tagged to a coworker — notifies the admin exactly once, even if the
+      edit changes several fields at once (title, due date, and urgency
+      together, say). An admin editing or deleting a task — their own, or
+      one assigned to an employee — produces no notification to anyone.
+- [ ] Tagging a coworker on a new task produces exactly one "assigned"
+      push to them (if they have push notifications enabled), naming who
+      assigned it — e.g. "Evan assigned you: ...".
 - [ ] Tapping your name in the sidebar (or the mobile menu) opens **Change
       password**; entering the wrong current password shows "Current
       password is incorrect" and changes nothing, and entering the right

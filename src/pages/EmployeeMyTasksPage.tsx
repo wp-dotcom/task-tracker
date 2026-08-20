@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
-import type { TaskWithProfiles } from '../types';
-import { isTaskDueToday, isTaskOverdue, todayLocalISODate } from '../lib/dates';
+import { useEmployees } from '../hooks/useEmployees';
+import type { Profile, TaskWithProfiles } from '../types';
+import { isTaskDueToday, isTaskOverdue, taskDeadline, todayLocalISODate } from '../lib/dates';
 import { buildDayBuckets, buildFutureWeekBuckets, byUrgencyThenDate } from '../lib/taskGrouping';
+import { employeeColorSlot } from '../lib/employeeColors';
 import TaskCard from '../components/TaskCard';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import TaskFormModal from '../components/TaskFormModal';
@@ -14,18 +17,31 @@ function matchesSearch(task: TaskWithProfiles, searchLower: string): boolean {
 }
 
 export default function EmployeeMyTasksPage() {
+  const { profile } = useAuth();
   const { tasks, loading, error } = useTasks();
+  const { employees } = useEmployees();
   const [selectedTask, setSelectedTask] = useState<TaskWithProfiles | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState('');
 
+  // "My Tasks" means tasks assigned TO me — tasks I created and tagged a
+  // coworker (or the admin) on instead are tracked separately below, in
+  // "Assigned by you", since they aren't this employee's to do. Without this
+  // filter, everything here would be a mix of "things I need to do" and
+  // "things I asked someone else to do", which is confusing at a glance.
+  const myTasks = useMemo(() => tasks.filter((t) => t.assigned_to === profile?.id), [tasks, profile?.id]);
+  const delegatedTasks = useMemo(
+    () => tasks.filter((t) => t.created_by === profile?.id && t.assigned_to !== profile?.id),
+    [tasks, profile?.id],
+  );
+
   const unviewedCount = useMemo(
-    () => tasks.filter((t) => t.status === 'open' && !t.first_viewed_at).length,
-    [tasks],
+    () => myTasks.filter((t) => t.status === 'open' && !t.first_viewed_at).length,
+    [myTasks],
   );
 
   const groups = useMemo(() => {
-    const open = tasks.filter((t) => t.status === 'open');
+    const open = myTasks.filter((t) => t.status === 'open');
     const overdue = open.filter((t) => isTaskOverdue(t)).sort(byUrgencyThenDate);
     const today = open
       .filter((t) => isTaskDueToday(t) && !isTaskOverdue(t))
@@ -39,12 +55,25 @@ export default function EmployeeMyTasksPage() {
     const days = buildDayBuckets(upcoming);
     const futureWeeks = buildFutureWeekBuckets(upcoming);
 
-    const completed = tasks
+    const completed = myTasks
       .filter((t) => t.status === 'completed')
       .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
 
     return { overdue, today, days, futureWeeks, completed };
-  }, [tasks]);
+  }, [myTasks]);
+
+  // Open first (soonest due date), then completed (most recently finished) —
+  // same shape as the rest of this page, just flattened into one section
+  // since there's usually only a handful of these.
+  const delegatedGroups = useMemo(() => {
+    const open = [...delegatedTasks.filter((t) => t.status === 'open')].sort(
+      (a, b) => taskDeadline(a).getTime() - taskDeadline(b).getTime(),
+    );
+    const completed = [...delegatedTasks.filter((t) => t.status === 'completed')].sort((a, b) =>
+      (b.completed_at ?? '').localeCompare(a.completed_at ?? ''),
+    );
+    return { open, completed };
+  }, [delegatedTasks]);
 
   // Stats always reflect the real, unfiltered counts — search only narrows
   // which cards show up below, the same way it works on the admin Tasks page.
@@ -74,6 +103,13 @@ export default function EmployeeMyTasksPage() {
     }),
     [groups, searchLower],
   );
+  const displayDelegated = useMemo(
+    () => ({
+      open: delegatedGroups.open.filter((t) => matchesSearch(t, searchLower)),
+      completed: delegatedGroups.completed.filter((t) => matchesSearch(t, searchLower)),
+    }),
+    [delegatedGroups, searchLower],
+  );
 
   const nothingDue =
     groups.overdue.length === 0 &&
@@ -86,7 +122,9 @@ export default function EmployeeMyTasksPage() {
     displayGroups.today.length +
     displayGroups.days.reduce((sum, d) => sum + d.tasks.length, 0) +
     displayGroups.futureWeeks.reduce((sum, w) => sum + w.tasks.length, 0) +
-    displayGroups.completed.length;
+    displayGroups.completed.length +
+    displayDelegated.open.length +
+    displayDelegated.completed.length;
   const noSearchResults = searchLower !== '' && totalMatches === 0;
 
   return (
@@ -138,7 +176,7 @@ export default function EmployeeMyTasksPage() {
         </div>
       )}
 
-      {!loading && (tasks.length > 0 || search) && (
+      {!loading && (myTasks.length > 0 || delegatedTasks.length > 0 || search) && (
         <input
           type="search"
           className="field-input my-tasks-search"
@@ -209,6 +247,28 @@ export default function EmployeeMyTasksPage() {
               muted
             />
           )}
+
+          {displayDelegated.open.length > 0 && (
+            <TaskSection
+              id="my-tasks-assigned-by-you"
+              title="Assigned by you"
+              tasks={displayDelegated.open}
+              onSelect={setSelectedTask}
+              showAssignee
+              employees={employees}
+            />
+          )}
+
+          {displayDelegated.completed.length > 0 && (
+            <TaskSection
+              title="Assigned by you · Completed"
+              tasks={displayDelegated.completed}
+              onSelect={setSelectedTask}
+              showAssignee
+              employees={employees}
+              muted
+            />
+          )}
         </>
       )}
 
@@ -224,12 +284,19 @@ function TaskSection({
   tasks,
   onSelect,
   muted = false,
+  showAssignee = false,
+  employees = [],
 }: {
   id?: string;
   title: string;
   tasks: TaskWithProfiles[];
   onSelect: (task: TaskWithProfiles) => void;
   muted?: boolean;
+  /** Shows who each task is assigned to — used for the "Assigned by you"
+   * sections, where (unlike the rest of this page) that isn't always this
+   * employee. */
+  showAssignee?: boolean;
+  employees?: Profile[];
 }) {
   return (
     <section id={id} className={`task-section${muted ? ' task-section-muted' : ''}`}>
@@ -238,7 +305,15 @@ function TaskSection({
       </h2>
       <div className="task-list">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onClick={() => onSelect(task)} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            onClick={() => onSelect(task)}
+            showAssignee={showAssignee}
+            assigneeColorSlot={
+              showAssignee && task.assignee ? employeeColorSlot(task.assignee.id, employees) : undefined
+            }
+          />
         ))}
       </div>
     </section>

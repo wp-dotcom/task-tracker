@@ -38,11 +38,16 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
 
   const isAdmin = profile?.role === 'admin';
   const isOwner = task && profile ? task.assigned_to === profile.id : false;
-  // A "self-created" task is one the employee added for themselves, as
-  // opposed to one an admin assigned to them — see the tasks_insert_self RLS
-  // policy in schema.sql, which is the source of truth for this invariant.
+  const isCreator = task && profile ? task.created_by === profile.id : false;
+  // A "self-created" task is one someone added for themselves, as opposed to
+  // one tagged/assigned to someone else (by an admin, or now by a coworker
+  // too — see tasks_insert_own in schema.sql).
   const isSelfCreated = task ? task.created_by === task.assigned_to : false;
-  const canEditOrDelete = isAdmin || (isOwner && isSelfCreated);
+  // Whoever created a task can edit or delete it — whether it's their own
+  // personal to-do or one they tagged a coworker/admin on — same as
+  // tasks_update_own/tasks_delete_own in schema.sql. An admin can always
+  // edit/delete any task regardless of who created it.
+  const canEditOrDelete = isAdmin || isCreator;
   const recurrenceLabel = task?.recurrence
     ? { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', weekdays: 'Every weekday' }[
         task.recurrence.frequency
@@ -181,13 +186,28 @@ export default function TaskDetailsModal({ task, onClose }: TaskDetailsModalProp
           >
             {task.status === 'completed' ? 'Completed' : overdue ? 'Overdue' : dueSoon ? 'Due soon' : 'Open'}
           </span>
-          {isAdmin && (
-            <span className="task-details-assignee">
-              {isSelfCreated
-                ? `Self-added by ${task.assignee?.full_name ?? 'Unknown'}`
-                : `Assigned to ${task.assignee?.full_name ?? 'Unknown'}`}
-            </span>
-          )}
+          {isSelfCreated
+            ? // Your own self-added task: nothing more to say to you about
+              // it. Admin still sees who added it, for context on a task
+              // they didn't create themselves.
+              isAdmin && (
+                <span className="task-details-assignee">
+                  Self-added by {task.assignee?.full_name ?? 'Unknown'}
+                </span>
+              )
+            : (
+                <span className="task-details-assignee">
+                  {isOwner
+                    ? // Could've been tagged by an admin or by a coworker —
+                      // either way, worth knowing who assigned it to you.
+                      `Assigned to you by ${task.creator?.full_name ?? 'Unknown'}`
+                    : isCreator
+                      ? `Assigned to ${task.assignee?.full_name ?? 'Unknown'}`
+                      : // Neither owner nor creator: an admin looking in on a
+                        // task one employee tagged another with.
+                        `Assigned to ${task.assignee?.full_name ?? 'Unknown'} by ${task.creator?.full_name ?? 'Unknown'}`}
+                </span>
+              )}
           {recurrenceLabel && (
             <span className="task-details-recurrence">
               ↻ {task.recurrence?.active ? `Repeats ${recurrenceLabel}` : 'Repeating series (stopped)'}

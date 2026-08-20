@@ -209,6 +209,22 @@ export async function fetchEmployees(): Promise<Profile[]> {
   return (data ?? []) as Profile[];
 }
 
+/**
+ * All admin profiles — lets an employee's "Assigned to" picker include
+ * admins as a taggable option (not just fellow employees), same as
+ * fetchEmployees() above. Relies on profiles_select_admins in schema.sql,
+ * which already lets any authenticated user read admin rows.
+ */
+export async function fetchAdmins(): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'admin')
+    .order('full_name');
+  if (error) throw error;
+  return (data ?? []) as Profile[];
+}
+
 export async function fetchTaskEvents(taskId: string): Promise<TaskEvent[]> {
   const { data, error } = await supabase
     .from('task_events')

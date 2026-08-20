@@ -20,10 +20,11 @@
 // range, not necessarily the run closest to the exact offset.
 //
 // It also notifies every admin (schema.sql section 23) when an employee —
-// not an admin — completes a task, adds their own task, views a task for
-// the very first time, edits their own task, or deletes their own task.
-// This direction only: an admin editing or deleting a task never notifies
-// the employee it's assigned to. "admin_overdue" reuses task_push_log the
+// not an admin — completes a task, adds a task (for themselves or tagged to
+// a coworker), views a task for the very first time, edits a task they
+// created, or deletes a task they created. This direction only: an admin
+// editing or deleting a task never notifies the employee it's assigned to.
+// "admin_overdue" reuses task_push_log the
 // same way as above; everything else keyed off a task_events row
 // (completed/added/first-viewed/edited) is de-duped via admin_push_log,
 // since those can legitimately happen more than once for the same task
@@ -205,7 +206,7 @@ Deno.serve(async (req) => {
 
   const { data: tasks, error: tasksError } = await admin
     .from('tasks')
-    .select('id, title, due_date, due_time, assigned_to')
+    .select('id, title, due_date, due_time, assigned_to, created_by')
     .eq('status', 'open');
 
   if (tasksError) {
@@ -270,12 +271,16 @@ Deno.serve(async (req) => {
     }
 
     if (!sentSet.has(`${task.id}:assigned`)) {
+      // Name the assigner when it's a coworker tagging someone (not
+      // themselves, and not an admin — admin-assigned tasks keep the plain
+      // title, matching how this notification has always read).
+      const creator = task.created_by !== task.assigned_to ? profileById.get(task.created_by) : undefined;
       jobs.push({
         taskId: task.id,
         userId: task.assigned_to,
         kind: 'assigned',
         title: 'New task assigned',
-        body: task.title,
+        body: creator && creator.role === 'employee' ? `${creator.full_name} assigned you: ${task.title}` : task.title,
       });
     }
 
@@ -383,17 +388,23 @@ Deno.serve(async (req) => {
             taskEventIds: [event.id],
           });
         }
-      } else if (event.event_type === 'created' && task.created_by === task.assigned_to) {
-        // Self-added task (created_by === assigned_to). An admin assigning
-        // a task to someone else also logs a 'created' event, but the
-        // actor.role check above already excludes that case.
+      } else if (event.event_type === 'created') {
+        // Any employee-created task — self-added (created_by === assigned_to)
+        // or tagged to a coworker instead. An admin assigning a task to
+        // someone else also logs a 'created' event, but the actor.role check
+        // above already excludes that case (the actor there would be the
+        // admin, not an employee). Named the assignee when it's not the
+        // employee themselves, so the admin knows who it's actually for.
+        const assignee = task.created_by !== task.assigned_to ? profileById.get(task.assigned_to) : undefined;
         for (const adminId of adminIds) {
           jobs.push({
             taskId: task.id,
             userId: adminId,
             kind: 'admin_added',
             title: 'New task added',
-            body: `${actor.full_name} added "${task.title}"`,
+            body: assignee
+              ? `${actor.full_name} added "${task.title}" for ${assignee.full_name}`
+              : `${actor.full_name} added "${task.title}"`,
             taskEventIds: [event.id],
           });
         }
@@ -442,8 +453,9 @@ Deno.serve(async (req) => {
       // Only employee-performed edits are notification-worthy here — an
       // admin editing a task (their own or one they assigned) doesn't
       // notify anyone, same as completing/adding above. This is also the
-      // only kind of task an employee can directly edit at all (their own
-      // self-added task), so no further ownership check is needed.
+      // only kind of task an employee can directly edit at all (one they
+      // created — self-added or tagged to a coworker; see tasks_update_own
+      // in schema.sql), so no further ownership check is needed.
       if (actor.role !== 'employee') continue;
       for (const adminId of adminIds) {
         jobs.push({
@@ -480,8 +492,10 @@ Deno.serve(async (req) => {
     // Only employee-performed deletions are notification-worthy here — an
     // admin deleting a task (their own or one they assigned) doesn't
     // notify anyone, same as completing/adding/editing above. This is also
-    // the only kind of task an employee can directly delete at all (their
-    // own self-added task), so no further ownership check is needed.
+    // the only kind of task an employee can directly delete at all (one
+    // they created — self-added or tagged to a coworker; see
+    // tasks_delete_own in schema.sql), so no further ownership check is
+    // needed.
     if (actor?.role === 'employee') {
       for (const adminId of adminIds) {
         jobs.push({

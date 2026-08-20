@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import { useCalendarEvents } from '../context/CalendarEventsContext';
 import TaskCalendar from '../components/TaskCalendar';
@@ -10,9 +11,16 @@ import { CalendarSkeleton } from '../components/Skeleton';
 import type { CalendarEventWithCreator, TaskWithProfiles } from '../types';
 
 export default function EmployeeCalendarPage() {
+  const { profile } = useAuth();
   const { tasks, loading, error } = useTasks();
   const { calendarEvents, error: calendarEventsError } = useCalendarEvents();
   const [selectedTask, setSelectedTask] = useState<TaskWithProfiles | null>(null);
+
+  // This is "my schedule" — tasks assigned to someone else that this
+  // employee happens to have created (see tasks_select in schema.sql) don't
+  // belong on it; those show up in My Tasks' "Assigned by you" section
+  // instead, since that's where they're actually being tracked from.
+  const myTasks = useMemo(() => tasks.filter((t) => t.assigned_to === profile?.id), [tasks, profile?.id]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formDefaultDate, setFormDefaultDate] = useState<string | undefined>(undefined);
@@ -61,7 +69,7 @@ export default function EmployeeCalendarPage() {
         <CalendarSkeleton />
       ) : (
         <TaskCalendar
-          tasks={tasks}
+          tasks={myTasks}
           calendarEvents={calendarEvents}
           editable={false}
           onSelectTask={setSelectedTask}

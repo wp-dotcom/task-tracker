@@ -60,9 +60,12 @@ export default function TaskCard({
   // separate permission model.
   const isAdmin = profile?.role === 'admin';
   const isOwner = profile ? task.assigned_to === profile.id : false;
-  const isSelfCreated = task.created_by === task.assigned_to;
+  const isCreator = profile ? task.created_by === profile.id : false;
   const canComplete = !completed && (isAdmin || isOwner);
-  const canDelete = isAdmin || (isOwner && isSelfCreated);
+  // Whoever created the task can delete it — same as canEditOrDelete in
+  // TaskDetailsModal (see tasks_delete_own in schema.sql) — regardless of
+  // who it's currently assigned to.
+  const canDelete = isAdmin || isCreator;
   const swipeEnabled = !selectable && (canComplete || canDelete);
 
   const [dragX, setDragX] = useState(0);

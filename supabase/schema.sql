@@ -331,6 +331,22 @@ create policy profiles_select_admins on public.profiles
   to authenticated
   using (role = 'admin');
 
+-- Same idea, the other direction: ANY signed-in user may read employee
+-- profile rows too — not just admins. This is what lets an employee tag a
+-- coworker on a task they're creating (the "Assigned to" dropdown needs the
+-- full roster, same as an admin's) and what resolves a coworker's name
+-- anywhere else the UI shows one (task "assigned to"/"created by", comments,
+-- photos) instead of falling back to "Unknown". Combined with
+-- profiles_select and profiles_select_admins above, every authenticated
+-- user can now read every profile row — reasonable for a small trusted
+-- team; each user still cannot INSERT/UPDATE/DELETE anyone's profile but
+-- their own (see profiles_update_admin etc. below, unchanged).
+drop policy if exists profiles_select_employees on public.profiles;
+create policy profiles_select_employees on public.profiles
+  for select
+  to authenticated
+  using (role = 'employee');
+
 -- Only admins may update profiles (e.g. renaming an employee, promoting to
 -- admin). Regular users cannot self-edit their role.
 drop policy if exists profiles_update_admin on public.profiles;
@@ -357,12 +373,18 @@ create policy profiles_delete_admin on public.profiles
 
 
 -- ---- tasks ----------------------------------------------------------------
--- Admins see every task. Employees see only tasks assigned to them.
+-- Admins see every task. Employees see tasks assigned to them, PLUS tasks
+-- they created themselves (even if tagged to a coworker instead of
+-- themselves — see tasks_insert_own below) so they can track what they've
+-- delegated. Without the "or created_by" branch, an employee couldn't even
+-- read back the row they just inserted for someone else (INSERT ... SELECT
+-- is subject to this same policy), and createTask()'s .select().single()
+-- would fail outright.
 drop policy if exists tasks_select on public.tasks;
 create policy tasks_select on public.tasks
   for select
   to authenticated
-  using (public.is_admin() or assigned_to = auth.uid());
+  using (public.is_admin() or assigned_to = auth.uid() or created_by = auth.uid());
 
 -- Only admins may create tasks assigned to someone else, and only as
 -- themselves (created_by must be their own id — enforced by WITH CHECK).
@@ -372,23 +394,28 @@ create policy tasks_insert_admin on public.tasks
   to authenticated
   with check (public.is_admin() and created_by = auth.uid());
 
--- An employee (or admin) may also create a *personal* task for themselves —
--- a self-added to-do that only they (and admins) can see. This is the one
--- exception to "only admins manage tasks": it's allowed only when the task
--- is both created by AND assigned to the caller, which is how the rest of
--- the app (RPCs, other policies, the UI) recognizes a "self-created" task —
--- no separate schema column needed.
+-- An employee may also create a task assigned to ANYONE — themselves, a
+-- fellow employee, or an admin ("tagging" a coworker) — as long as they're
+-- honest about who created it (created_by must be their own id). This used
+-- to require assigned_to = auth.uid() too (a "self-created" task could only
+-- ever be for yourself); that requirement is gone now that employees can
+-- tag each other. is_creator-based checks below (tasks_update_own,
+-- tasks_delete_own, task_recurrences' equivalents, can_access_task()) all
+-- follow the same relaxation, and the assignee gets notified the normal way
+-- (check-due-tasks' "assigned" push — see task_push_log below — fires off
+-- the task_id/assigned_to pair, not off who created it).
 drop policy if exists tasks_insert_self on public.tasks;
-create policy tasks_insert_self on public.tasks
+drop policy if exists tasks_insert_own on public.tasks;
+create policy tasks_insert_own on public.tasks
   for insert
   to authenticated
-  with check (created_by = auth.uid() and assigned_to = auth.uid());
+  with check (created_by = auth.uid());
 
 -- Only admins may run a direct UPDATE on tasks assigned to someone else
 -- (used by the task edit form / drag-and-drop). Employees have no UPDATE
--- policy on tasks assigned to them by an admin — they cannot change
--- urgency, assignment, dates, or timestamps by any direct API/SQL call.
--- Their only way to change an admin-assigned task's state is through the
+-- policy on tasks assigned to them by an admin or a coworker — they cannot
+-- change urgency, assignment, dates, or timestamps by any direct API/SQL
+-- call. Their only way to change such a task's state is through the
 -- mark_task_viewed / complete_task / reopen_task RPC functions below,
 -- which run as SECURITY DEFINER with their own explicit authorization
 -- checks and only ever touch the specific viewing/completion columns.
@@ -399,17 +426,20 @@ create policy tasks_update_admin on public.tasks
   using (public.is_admin())
   with check (public.is_admin());
 
--- An employee may directly edit (or delete, below) their own self-created
--- task the same way an admin edits any task — since it's their own personal
--- to-do, not something an admin assigned them. WITH CHECK still requires
--- the task to stay self-assigned after the update, so it can't be used to
--- reassign a task to someone else or "adopt" someone else's task.
+-- An employee may directly edit (or delete, below) any task THEY created —
+-- the same way an admin edits any task — whether it's their own personal
+-- to-do or one they tagged a coworker on, since either way it's theirs to
+-- manage. (Used to also require assigned_to = auth.uid(), back when a task
+-- an employee created could only ever be assigned to themselves; see
+-- tasks_insert_own above.) created_by itself can't be changed regardless —
+-- it's locked immutable by the trigger in section 8 above.
 drop policy if exists tasks_update_self on public.tasks;
-create policy tasks_update_self on public.tasks
+drop policy if exists tasks_update_own on public.tasks;
+create policy tasks_update_own on public.tasks
   for update
   to authenticated
-  using (created_by = auth.uid() and assigned_to = auth.uid())
-  with check (created_by = auth.uid() and assigned_to = auth.uid());
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
 
 -- Only admins may delete tasks assigned to someone else.
 drop policy if exists tasks_delete_admin on public.tasks;
@@ -418,12 +448,14 @@ create policy tasks_delete_admin on public.tasks
   to authenticated
   using (public.is_admin());
 
--- An employee may delete their own self-created task.
+-- An employee may delete any task they created (self-assigned or tagged to
+-- a coworker) — see tasks_update_own above.
 drop policy if exists tasks_delete_self on public.tasks;
-create policy tasks_delete_self on public.tasks
+drop policy if exists tasks_delete_own on public.tasks;
+create policy tasks_delete_own on public.tasks
   for delete
   to authenticated
-  using (created_by = auth.uid() and assigned_to = auth.uid());
+  using (created_by = auth.uid());
 
 
 -- ---- task_events ------------------------------------------------------------
@@ -866,12 +898,13 @@ create trigger task_recurrences_set_updated_at
 alter table public.task_recurrences enable row level security;
 
 -- Same visibility rule as tasks: admins see every recurrence, employees see
--- only their own (the ones assigned to them).
+-- ones assigned to them, plus ones they started themselves (even if tagged
+-- to a coworker) — same "or created_by" reasoning as tasks_select above.
 drop policy if exists task_recurrences_select on public.task_recurrences;
 create policy task_recurrences_select on public.task_recurrences
   for select
   to authenticated
-  using (public.is_admin() or assigned_to = auth.uid());
+  using (public.is_admin() or assigned_to = auth.uid() or created_by = auth.uid());
 
 -- Admins can start a recurrence assigned to anyone, as themselves.
 drop policy if exists task_recurrences_insert_admin on public.task_recurrences;
@@ -880,13 +913,15 @@ create policy task_recurrences_insert_admin on public.task_recurrences
   to authenticated
   with check (public.is_admin() and created_by = auth.uid());
 
--- An employee can start a recurrence for themselves only — same
--- created_by = assigned_to = auth.uid() rule as tasks_insert_self.
+-- An employee can start a recurrence assigned to anyone — themselves or a
+-- tagged coworker — same relaxation as tasks_insert_own above (used to
+-- require assigned_to = auth.uid() too).
 drop policy if exists task_recurrences_insert_self on public.task_recurrences;
-create policy task_recurrences_insert_self on public.task_recurrences
+drop policy if exists task_recurrences_insert_own on public.task_recurrences;
+create policy task_recurrences_insert_own on public.task_recurrences
   for insert
   to authenticated
-  with check (created_by = auth.uid() and assigned_to = auth.uid());
+  with check (created_by = auth.uid());
 
 -- Admins can update any recurrence (used to stop a series they started).
 drop policy if exists task_recurrences_update_admin on public.task_recurrences;
@@ -896,13 +931,15 @@ create policy task_recurrences_update_admin on public.task_recurrences
   using (public.is_admin())
   with check (public.is_admin());
 
--- An employee can update (stop) their own self-created recurrence.
+-- An employee can update (stop) any recurrence they started, tagged to a
+-- coworker or not — same relaxation as tasks_update_own above.
 drop policy if exists task_recurrences_update_self on public.task_recurrences;
-create policy task_recurrences_update_self on public.task_recurrences
+drop policy if exists task_recurrences_update_own on public.task_recurrences;
+create policy task_recurrences_update_own on public.task_recurrences
   for update
   to authenticated
-  using (created_by = auth.uid() and assigned_to = auth.uid())
-  with check (created_by = auth.uid() and assigned_to = auth.uid());
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
 
 -- Admins can delete any recurrence; an employee can delete their own.
 drop policy if exists task_recurrences_delete_admin on public.task_recurrences;
@@ -912,10 +949,11 @@ create policy task_recurrences_delete_admin on public.task_recurrences
   using (public.is_admin());
 
 drop policy if exists task_recurrences_delete_self on public.task_recurrences;
-create policy task_recurrences_delete_self on public.task_recurrences
+drop policy if exists task_recurrences_delete_own on public.task_recurrences;
+create policy task_recurrences_delete_own on public.task_recurrences
   for delete
   to authenticated
-  using (created_by = auth.uid() and assigned_to = auth.uid());
+  using (created_by = auth.uid());
 
 grant select, insert, update, delete on public.task_recurrences to authenticated;
 
@@ -1054,7 +1092,8 @@ grant execute on function public.stop_task_recurrence(uuid) to authenticated;
 -- -----------------------------------------------------------------------------
 -- can_access_task() — shared visibility check for task_comments/task_photos
 -- -----------------------------------------------------------------------------
--- Same rule as tasks_select above (admin, or the assigned employee), pulled
+-- Same rule as tasks_select above (admin, the assigned employee, or whoever
+-- created the task — e.g. an employee who tagged a coworker on it), pulled
 -- out into a helper since both task_comments and task_photos (table +
 -- Storage policies) need the exact same check.
 create or replace function public.can_access_task(p_task_id uuid)
@@ -1067,7 +1106,7 @@ as $$
   select exists (
     select 1 from public.tasks t
     where t.id = p_task_id
-      and (t.assigned_to = auth.uid() or public.is_admin())
+      and (t.assigned_to = auth.uid() or t.created_by = auth.uid() or public.is_admin())
   );
 $$;
 

@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTasks } from '../context/TasksContext';
 import { useToast } from '../context/ToastContext';
 import { useEmployees } from '../hooks/useEmployees';
+import { useAdmins } from '../hooks/useAdmins';
 import { useTaskTemplates } from '../hooks/useTaskTemplates';
 import { getErrorMessage } from '../lib/errors';
 import { todayLocalISODate } from '../lib/dates';
@@ -53,6 +54,7 @@ export default function TaskFormModal({
   const { createTask, createTaskRecurrence, updateTask, markViewed } = useTasks();
   const { showToast } = useToast();
   const { employees, loading: employeesLoading } = useEmployees();
+  const { admins, loading: adminsLoading } = useAdmins();
   const { templates, refresh: refreshTemplates } = useTaskTemplates();
 
   const isAdmin = profile?.role === 'admin';
@@ -139,8 +141,12 @@ export default function TaskFormModal({
     } else {
       setTitle('');
       setDescription('');
-      // Employees creating their own task are always the assignee; admins
-      // pick from the employee list below.
+      // Defaults to "assigned to me" either way — an admin still picks from
+      // the roster below (no default self-bias, since who they're assigning
+      // to is usually the whole point), while an employee starts out
+      // assigning to themselves but can just as easily tag someone else,
+      // now that the picker is shown to everyone (see the "Assigned to"
+      // field below).
       setAssignedTo(isAdmin ? '' : (profile?.id ?? ''));
       setDueDate(defaultDate ?? todayLocalISODate());
       setDueTime(defaultTime ?? '');
@@ -245,9 +251,12 @@ export default function TaskFormModal({
                 due_time: dueTime ? `${dueTime}:00` : null,
                 start_date: dueDate,
               });
-        if (!isAdmin) {
-          // Employee just created and is viewing their own task — mark it
+        if (!isAdmin && assignedTo === profile?.id) {
+          // Employee just created a task assigned to themselves — mark it
           // viewed right away so it doesn't show a confusing "New" badge.
+          // Doesn't apply when they tagged someone else instead: it's not
+          // their task to view, and mark_task_viewed only lets the actual
+          // assignee do this anyway.
           markViewed(created.id).catch(() => {});
         }
         if (reminderOffsets.length > 0 && profile) {
@@ -289,7 +298,7 @@ export default function TaskFormModal({
         </button>
 
         <h2 id="task-form-title">
-          {isEdit ? 'Edit task' : duplicateFrom ? 'Duplicate task' : isAdmin ? 'Add task' : 'Add my task'}
+          {isEdit ? 'Edit task' : duplicateFrom ? 'Duplicate task' : 'Add task'}
         </h2>
 
         {!isEdit && isAdmin && (
@@ -341,33 +350,42 @@ export default function TaskFormModal({
             className="field-input field-textarea"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={isAdmin ? 'Add any details the employee needs...' : 'Add any notes for yourself...'}
+            placeholder={
+              assignedTo && assignedTo !== profile?.id
+                ? 'Add any details they need...'
+                : 'Add any notes for yourself...'
+            }
             rows={4}
           />
 
           <div className="field-row">
-            {isAdmin && (
-              <div className="field-col">
-                <label className="field-label" htmlFor="task-assignee">
-                  Assigned to
-                </label>
-                <Dropdown
-                  id="task-assignee"
-                  value={assignedTo}
-                  onChange={setAssignedTo}
-                  options={[
-                    // useEmployees() only ever returns role='employee' profiles
-                    // (it's shared with the Employees admin page, where that's
-                    // exactly what's wanted) — so without this, an admin has no
-                    // way to assign a task to themselves. Listed first since
-                    // it's usually the admin's own to-do, not someone else's.
-                    ...(profile ? [{ value: profile.id, label: `${profile.full_name} (you)` }] : []),
-                    ...employees.map((emp: Profile) => ({ value: emp.id, label: emp.full_name })),
-                  ]}
-                  placeholder={employeesLoading ? 'Loading...' : 'Select employee'}
-                />
-              </div>
-            )}
+            <div className="field-col">
+              <label className="field-label" htmlFor="task-assignee">
+                Assigned to
+              </label>
+              <Dropdown
+                id="task-assignee"
+                value={assignedTo}
+                onChange={setAssignedTo}
+                options={[
+                  // Listed first since it's the most common case — creating a
+                  // task for yourself, whichever role you are. Any employee
+                  // can now tag any admin or fellow employee too (not just
+                  // admins assigning to employees), so both admins() and
+                  // employees() are offered here — see profiles_select_admins
+                  // / profiles_select_employees in schema.sql, which is what
+                  // makes each role's roster visible to the other.
+                  ...(profile ? [{ value: profile.id, label: `${profile.full_name} (you)` }] : []),
+                  ...admins
+                    .filter((a: Profile) => a.id !== profile?.id)
+                    .map((a: Profile) => ({ value: a.id, label: `${a.full_name} (admin)` })),
+                  ...employees
+                    .filter((emp: Profile) => emp.id !== profile?.id)
+                    .map((emp: Profile) => ({ value: emp.id, label: emp.full_name })),
+                ]}
+                placeholder={employeesLoading || adminsLoading ? 'Loading...' : 'Select who this is for'}
+              />
+            </div>
 
             <div className="field-col">
               <label className="field-label" htmlFor="task-urgency">
