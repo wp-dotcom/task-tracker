@@ -13,9 +13,10 @@ import TaskDetailsModal from '../components/TaskDetailsModal';
 import EmployeeBreakdownModal from '../components/EmployeeBreakdownModal';
 import { ListSkeleton } from '../components/Skeleton';
 
-// How many soonest-due open tasks to preview above the calendar — enough to
-// be useful at a glance without turning the Dashboard into another task list.
-const UPCOMING_COUNT = 5;
+// How many tasks to preview in the Upcoming / Recently completed lists above
+// the calendar — enough to be useful at a glance without turning the
+// Dashboard into another task list.
+const DASHBOARD_LIST_COUNT = 5;
 
 function CompletionCard({
   name,
@@ -87,8 +88,16 @@ export default function AdminDashboardPage() {
       [...tasks]
         .filter((t) => t.status === 'open')
         .sort((a, b) => taskDeadline(a).getTime() - taskDeadline(b).getTime())
-        .slice(0, UPCOMING_COUNT),
+        .slice(0, DASHBOARD_LIST_COUNT),
     [tasks],
+  );
+
+  // Across everyone, not just the currently-viewed breakdown — reuses the
+  // same capped, most-recently-completed-first list computeTaskBreakdown
+  // already builds for the "All employees" card's own breakdown modal.
+  const recentlyCompletedTasks = useMemo(
+    () => teamBreakdown.recentlyCompleted.slice(0, DASHBOARD_LIST_COUNT),
+    [teamBreakdown],
   );
 
   const roster = useMemo(
@@ -144,24 +153,45 @@ export default function AdminDashboardPage() {
             )}
           </section>
 
-          <section className="dashboard-section">
-            <h2 className="dashboard-section-title">Upcoming</h2>
-            {upcomingTasks.length === 0 ? (
-              <p className="muted dashboard-section-hint">Nothing open right now.</p>
-            ) : (
-              <div className="task-list">
-                {upcomingTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onClick={() => setSelectedTask(task)}
-                    showAssignee
-                    assigneeColorSlot={task.assignee ? employeeColorSlot(task.assignee.id, employees) : 0}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+          <div className="dashboard-columns">
+            <section className="dashboard-section">
+              <h2 className="dashboard-section-title">Upcoming</h2>
+              {upcomingTasks.length === 0 ? (
+                <p className="muted dashboard-section-hint">Nothing open right now.</p>
+              ) : (
+                <div className="task-list">
+                  {upcomingTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onClick={() => setSelectedTask(task)}
+                      showAssignee
+                      assigneeColorSlot={task.assignee ? employeeColorSlot(task.assignee.id, employees) : 0}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2 className="dashboard-section-title">Recently completed</h2>
+              {recentlyCompletedTasks.length === 0 ? (
+                <p className="muted dashboard-section-hint">Nothing completed yet.</p>
+              ) : (
+                <div className="task-list">
+                  {recentlyCompletedTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onClick={() => setSelectedTask(task)}
+                      showAssignee
+                      assigneeColorSlot={task.assignee ? employeeColorSlot(task.assignee.id, employees) : 0}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
 
           <section className="dashboard-section">
             <h2 className="dashboard-section-title">Calendar</h2>
